@@ -32,5 +32,18 @@ setnames(data2d,'item2d','val')
 data2d[, site := 'A']
 
 library(readr)
+
+# Simulate different sites
+str(data1d)
+data1d[250:499, site := 'B']
+data1d[500:749, site := 'C']
+data1d[750:1000, site := 'D']
+table(data1d$site)
 write_csv(data1d, 'inspectEHR/data/height.csv')
+
+
+data2d[id %in% c(250:499), site := 'B']
+data2d[id %in% c(500:749), site := 'C']
+data2d[id %in% c(750:1000), site := 'D']
+table(data2d$site)
 write_csv(data2d, 'inspectEHR/data/hrate.csv')
