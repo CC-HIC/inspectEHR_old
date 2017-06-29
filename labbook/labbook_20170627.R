@@ -1,5 +1,6 @@
 # Extract example data for working on the data quality
 rm(list=ls())
+library(readr)
 library(data.table)
 library(cleanEHR)
 library(purrr)
@@ -12,7 +13,8 @@ ccd <- anon_ccd
 ccd@nepisodes
 ccd@infotb
 
-# example extracting 2d data
+# example extracting 1d data
+ccd@episodes[[1]]@data$NIHR_HIC_ICU_0093 # sex
 ccd@episodes[[1]]@data$NIHR_HIC_ICU_0017
 # example extracting 2d data
 ccd@episodes[[1]]@data$NIHR_HIC_ICU_0108
@@ -23,6 +25,13 @@ val <-  as.character(sapply(1:ccd@nepisodes, function(x) ccd@episodes[[x]]@data$
 data1d <- data.table(id,val)
 data1d[, site := 'A']
 head(data1d)
+
+# Now extract all sex
+id <-  1:ccd@nepisodes
+val <-  as.character(sapply(1:ccd@nepisodes, function(x) ccd@episodes[[x]]@data$NIHR_HIC_ICU_0093))
+data1d_cat <- data.table(id,val)
+data1d_cat[, site := 'A']
+head(data1d_cat)
 
 # Now extract all heart rates
 l = lapply(seq(ccd@nepisodes), function(x) data.table(id=x, ccd@episodes[[1]]@data$NIHR_HIC_ICU_0108))
@@ -40,6 +49,14 @@ data1d[500:749, site := 'C']
 data1d[750:1000, site := 'D']
 table(data1d$site)
 write_csv(data1d, 'inspectEHR/data/height.csv')
+
+# Simulate different sites
+str(data1d_cat)
+data1d_cat[250:499, site := 'B']
+data1d_cat[500:749, site := 'C']
+data1d_cat[750:1000, site := 'D']
+table(data1d_cat$site)
+write_csv(data1d_cat, 'inspectEHR/data/sex.csv')
 
 
 data2d[id %in% c(250:499), site := 'B']

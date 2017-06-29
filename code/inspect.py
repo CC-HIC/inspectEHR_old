@@ -6,38 +6,37 @@ from statsmodels.graphics.mosaicplot import mosaic
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import os
+import seaborn as sns
 
-# Load data as pandas
+np.__version__
+sns.__version__
+pd.__version__
+
+sns.set()
+
+# - [ ] @TODO: (2017-06-27) add metadata passing where metadata contains info
+# about how to manage that item
+# - [X] @TODO: (2017-06-27) add error checking to make sure data contains expected columns
+
+
+# Load example data as pandas
 d1d = pd.read_csv(os.path.join('inspectEHR', 'data', 'height.csv'))
 d1d.head()
 d1d_cat = pd.read_csv(os.path.join('inspectEHR', 'data', 'sex.csv'))
 d1d_cat.head()
-
 d2d = pd.read_csv(os.path.join('inspectEHR', 'data', 'hrate.csv'))
 d2d.head()
 
-# - [ ] @TODO: (2017-06-27) add metadata passing where metadata contains info
-# about how to manage that item
-# - [ ] @TODO: (2017-06-27) add error checking to make sure data contains expected columns
-
-type(d1d)
-r, c = d1d.shape
-r > 0
-s = ' '.join(["Pandas dataframe with", str(r), "rows"])
-print(s)
-
-d = pd.DataFrame({'x': range(5), 'y': [0.0,0.1,0.2,0.3,0.5]})
-d.dtypes
-assert ptypes.is_any_int_dtype(d['x']) | ptypes.is_float_dtype(d['y'])
+# demo data
+# d = pd.DataFrame({'x': range(5), 'y': [0.0,0.1,0.2,0.3,0.5]})
+# assert ptypes.is_any_int_dtype(d['x']) | ptypes.is_float_dtype(d['y'])
 
 # Numerical summary
-d1d['val'].describe()
+type(d1d['val'].describe())
 d1d['val'].plot(kind='hist', bins=30)
-plt.show()
+d1d['val'].describe()
 
 # Seaborn
-import seaborn as sns
-sns.set()
 d1d['val'].hist()
 plt.show()
 sns.kdeplot(d1d['val'])
@@ -77,6 +76,24 @@ class DataRaw(object):
         s = ' '.join(["Pandas dataframe with", str(self.r), "rows (first 5 shown)"])
         return s
 
+    def inspect(self):
+        '''
+        Pass in the values only
+        And here is some more stuff
+        '''
+        print('''Unique episodes ''', len(self.dt['id'].unique()), "available")
+        print('''Unique sites ''', len(self.dt['site'].unique()), "available")
+        print(self.dt.dtypes)
+
+
+class DataCat(DataRaw):
+    ''' Categorical data '''
+    def __init__(self, dt):
+        DataRaw.__init__(self, dt)
+        # Expects categories to be strings
+        # - [ ] @TODO: (2017-06-28) allow integer categories
+        assert ptypes.is_string_dtype(self.dt['val'])
+
     # tabulate values
     def tab(self):
         ''' Tabulate data (if categorical)'''
@@ -93,29 +110,22 @@ class DataRaw(object):
         plt.show()
         return pd.crosstab(self.dt['site'], self.dt['val'])
 
-    def summ(self):
-        ''' Summarise data (if numerical)'''
+class DataCont(DataRaw):
+    ''' Continuous data '''
+    def __init__(self, dt):
+        DataRaw.__init__(self, dt)
+        # Expects categories to be float or int
         assert ptypes.is_any_int_dtype(self.dt['val']) \
             | ptypes.is_float_dtype(self.dt['val'])
-        return self.dt['val'].describe()
 
-    def inspect(self):
-        '''
-        Pass in the values only
-        And here is some more stuff
-        '''
-        print('''Unique episodes ''', len(self.dt['id'].unique()), "available")
-        print('''Unique sites ''', len(self.dt['site'].unique()), "available")
-        print(self.dt.dtypes)
+    def summ(self):
+        ''' Summarise data (if numerical)'''
+        return self.dt['val'].describe()
 
     def density(self):
         # Plot histogram
-        assert ptypes.is_any_int_dtype(self.dt['val']) \
-            | ptypes.is_float_dtype(self.dt['val'])
         sns.kdeplot(self.dt['val'])
         plt.show()
-
-
 
 class Data1D(DataRaw):
     ''' A 1d version of data raw '''
@@ -132,17 +142,16 @@ class Data2D(DataRaw):
         assert 'time' in self.dt.dtypes
         print(self.dt.head())
 
-sex = Data1D(d1d_cat)
+sex = DataCat(d1d_cat)
 sex.tab()
 sex.tab_sites()
 
-heights = Data1D(d1d)
-heights.summ()
-
-heights.dt.head()
-heights.inspect()
+heights = DataCont(d1d)
 heights.summ()
 heights.density()
+heights.inspect()
+print(heights)
+
 
 # type(heights.val)
 # heights.val.mean()
