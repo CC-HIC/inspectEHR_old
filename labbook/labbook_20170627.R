@@ -13,6 +13,19 @@ ccd <- anon_ccd
 ccd@nepisodes
 ccd@infotb
 
+# Extract data as list from first 10 patients
+ccd5 <- lapply(seq(5), function(x) ccd@episodes[[x]]@data)
+# ccd5[[1]]
+saveRDS(ccd5, 'inspectEHR/data/ccd5.RDS')
+
+# Alternative
+# Try extracting by converting ccd to JSON
+# install.packages('RJSONIO')
+library(RJSONIO)
+x <- toJSON(ccd@episodes[[1]])
+x <- toJSON(ccd@episodes)
+cat(x, file='inspectEHR/data/anon_public_da1000.JSON')
+
 # example extracting 1d data
 ccd@episodes[[1]]@data$NIHR_HIC_ICU_0093 # sex
 ccd@episodes[[1]]@data$NIHR_HIC_ICU_0017

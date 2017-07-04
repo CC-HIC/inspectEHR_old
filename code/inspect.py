@@ -56,7 +56,10 @@ plt.show()
 # Base class
 class DataRaw(object):
     def __init__(self, dt):
-        ''' Initiate and check dataframe with correct rows and dimensions'''
+        '''
+        Initiate and check dataframe with correct rows and dimensions
+        This is the base class
+        '''
         self.dt = dt
 
         # Basic sanity checks
@@ -86,13 +89,13 @@ class DataRaw(object):
         print(self.dt.dtypes)
 
 
-class DataCat(DataRaw):
-    ''' Categorical data '''
-    def __init__(self, dt):
-        DataRaw.__init__(self, dt)
-        # Expects categories to be strings
-        # - [ ] @TODO: (2017-06-28) allow integer categories
-        assert ptypes.is_string_dtype(self.dt['val'])
+class DataCatMixin:
+    ''' Categorical data methods'''
+    # def __init__(self, dt):
+    #     super().__init__(dt)
+    #     # Expects categories to be strings
+    #     # - [ ] @TODO: (2017-06-28) allow integer categories
+    #     assert ptypes.is_string_dtype(self.dt['val'])
 
     # tabulate values
     def tab(self):
@@ -110,13 +113,13 @@ class DataCat(DataRaw):
         plt.show()
         return pd.crosstab(self.dt['site'], self.dt['val'])
 
-class DataCont(DataRaw):
-    ''' Continuous data '''
-    def __init__(self, dt):
-        DataRaw.__init__(self, dt)
-        # Expects categories to be float or int
-        assert ptypes.is_any_int_dtype(self.dt['val']) \
-            | ptypes.is_float_dtype(self.dt['val'])
+class DataContMixin:
+    ''' Continuous data methods '''
+    # def __init__(self, dt):
+    #     DataRaw.__init__(self, dt)
+    #     # Expects categories to be float or int
+    #     assert ptypes.is_any_int_dtype(self.dt['val']) \
+    #         | ptypes.is_float_dtype(self.dt['val'])
 
     def summ(self):
         ''' Summarise data (if numerical)'''
@@ -127,20 +130,26 @@ class DataCont(DataRaw):
         sns.kdeplot(self.dt['val'])
         plt.show()
 
-class Data1D(DataRaw):
+class Data1D(DataCatMixin, DataRaw):
     ''' A 1d version of data raw '''
     def __init__(self, dt):
-        DataRaw.__init__(self, dt)
+        super().__init__(dt)
         print('made some 1d')
 
 
-class Data2D(DataRaw):
-    ''' A 2d version of data raw '''
+class Data2D_Cont(DataRaw, DataContMixin):
+    '''
+    A 2d version of DataCont
+    '''
     def __init__(self, dt):
-        DataRaw.__init__(self, dt)
+        super().__init__(dt)
+        # Expects categories to be float or int
+        assert ptypes.is_any_int_dtype(self.dt['val']) \
+            | ptypes.is_float_dtype(self.dt['val'])
         # Check time provided
         assert 'time' in self.dt.dtypes
         print(self.dt.head())
+
 
 sex = DataCat(d1d_cat)
 sex.tab()
@@ -162,6 +171,8 @@ print(heights)
 heights = Data1D(d1d)
 heights.inspect()
 
-hrates = Data2D(d2d)
+hrates = Data2D_Cont(d2d)
 hrates.inspect()
-hrates.histogram()
+hrates.density()
+hrates.summ()
+print(hrates)
