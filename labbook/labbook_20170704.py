@@ -97,22 +97,27 @@ def extract(ccd, nhic_code, byvar="site_id", as_type=None):
         with columns for the data (value) and time (time)
     '''
     x = []
-    for i, r in ccd.iterrows():
+    for r in ccd.itertuples():
         try:
-            d = pd.DataFrame(r['data'][nhic_code])
-            d['byvar'] = r[byvar]
+            d = r.data[nhic_code]
+            bv = getattr(r,byvar)
+            # If 2d then data stored as dict of lists
+            if type(d) == dict:
+                d = pd.DataFrame(d, index=np.repeat(r.Index, len(d['item2d'])))
+                d['byvar'] = bv
+            # else data stored as single item
+            else:
+                d = pd.DataFrame({'item1d': d, 'byvar': bv}, index=[r.Index])
             x.append(d)
         except KeyError:
             x.append(None)
     # Now concatenate all the individual data frames
-    # Using the site and episode_id as a multikey
-    x = pd.concat(x, keys=ccd.index)
-    # Label index
-    x.index.set_names(['id','i'], inplace=True)
+    x = pd.concat(x)
     # Rename data columns (assumes only 1 of item2d or item1d)
     x.rename(columns={'item2d': 'value', 'item1d': 'value'}, inplace=True)
-    # Convert time to timedelta
-    x['time'] = pd.to_timedelta(x['time'], unit='h')
+    # Convert time to timedelta (if 2d)
+    if 'time' in x.columns:
+        x['time'] = pd.to_timedelta(x['time'], unit='h')
     # Convert to appropriate np datatype
     if as_type:
         x['value'] = x['value'].astype(as_type)
@@ -129,8 +134,19 @@ ccd = gen_id(ccd)
 
 ccd.head()
 
+# Heart rate
 n0108 = extract(ccd, 'NIHR_HIC_ICU_0108', as_type=np.int)
+# Lactate
 n0122 = extract(ccd, 'NIHR_HIC_ICU_0122', as_type=np.float)
+# Sex
+n0093 = extract(ccd, 'NIHR_HIC_ICU_0093', as_type=np.str)
+
+n0108.iloc[:1]
+n0093.iloc[:1]
+n0122.iloc[:1]
+
+# Count missing data by episode
+
 
 # Describe
 n0122.head()
