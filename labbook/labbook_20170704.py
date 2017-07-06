@@ -85,11 +85,16 @@ def gen_id(ccd, *args):
 
 
 def extract(ccd, nhic_code, byvar="site_id", as_type=None):
-    '''
-    Extract an NHIC data item from the ccd JSON
-    Data is stored in a list
-    IDs are stored as id and i (index the row)
-    byvar allows reporting / analysis by category, defaults to site
+    ''' Extract an NHIC data item from the ccd JSON object
+    Args:
+        ccd: ccd object imported as pandas dataframe
+        nhic_code: data item to extract
+        byvar: allows reporting / analysis by category, defaults to site
+
+    Yields:
+        pandas dataframe
+        IDs are stored as id and i (index the row)
+        with columns for the data (value) and time (time)
     '''
     x = []
     for i, r in ccd.iterrows():
@@ -104,11 +109,13 @@ def extract(ccd, nhic_code, byvar="site_id", as_type=None):
     x = pd.concat(x, keys=ccd.index)
     # Label index
     x.index.set_names(['id','i'], inplace=True)
+    # Rename data columns (assumes only 1 of item2d or item1d)
+    x.rename(columns={'item2d': 'value', 'item1d': 'value'}, inplace=True)
     # Convert time to timedelta
     x['time'] = pd.to_timedelta(x['time'], unit='h')
     # Convert to appropriate np datatype
     if as_type:
-        x['item2d'] = x['item2d'].astype(as_type)
+        x['value'] = x['value'].astype(as_type)
     return x
 
 
