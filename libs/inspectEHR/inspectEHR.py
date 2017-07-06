@@ -1,46 +1,6 @@
-# Walk through analysis of 2D cont
-
-# Notes
-# - use pandas, seaborn for graphics (then customise with matplotlib)
-
-# - [x] @TODO: (2017-07-04) Import JSON version of ccd
-# - [x] @TODO: (2017-07-04) Extract 2D data item into dataframe
-# - [x] @TODO: (2017-07-04) Summarise numerical values
-# - [x] @TODO: (2017-07-04) Plot numerical values (density)
-# - [x] @TODO: (2017-07-04) generate dummy sites
-# - [x] @TODO: (2017-07-05) switch to single index (simpler)
-# - [x] @TODO: (2017-07-05) add category for cross classifying (default site)
-# - [x] @TODO: (2017-07-04) Summarise numerical values by site
-# - [x] @TODO: (2017-07-04) Plot numerical values by site (density)
-# - [ ] @TODO: (2017-07-05) Summarise missingness (abscence of 2D), by site
-# - [ ] @TODO: (2017-07-04) Summarise periods
-# - [ ] @TODO: (2017-07-04) Summarise periods by site
-# - [ ] @TODO: (2017-07-06) extract 1d data
-
-# Import
+# Functions for inspecting and working with ccd data
 import numpy as np
 import pandas as pd
-import seaborn as sns
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
-import os
-import json
-
-from statsmodels.graphics.mosaicplot import mosaic
-
-# Global variables
-ccd_file = "inspectEHR/data/anon_public_da1000.JSON"
-
-np.__version__
-sns.__version__
-pd.__version__
-
-# Set up pandas
-idx = pd.IndexSlice
-
-# Set up seaborn
-sns.reset_defaults()
-sns.set()
 
 # Impute random sites for testing
 def gen_rand_sites(d, sites=pd.Series(data=list('ABCDE'))):
@@ -129,41 +89,3 @@ def extract(ccd, nhic_code, byvar="site_id", as_type=None):
     if as_type:
         x['value'] = x['value'].astype(as_type)
     return x
-
-
-# Import data
-with open(ccd_file, 'r') as f:
-    ccd = pd.read_json(f)
-
-# Generate a range of sites and set up unique identifier
-ccd = gen_rand_sites(ccd)
-ccd = gen_id(ccd)
-
-ccd.head()
-
-# Heart rate
-n0108 = extract(ccd, 'NIHR_HIC_ICU_0108', as_type=np.int)
-# Lactate
-n0122 = extract(ccd, 'NIHR_HIC_ICU_0122', as_type=np.float)
-# Sex
-n0093 = extract(ccd, 'NIHR_HIC_ICU_0093', as_type=np.str)
-
-n0108.iloc[:1]
-n0093.iloc[:1]
-n0122.iloc[:1]
-
-# Count missing data by episode
-
-
-# Describe
-n0122.head()
-n0122['item2d'].describe()
-
-# Plot
-# - [ ] @TODO: (2017-07-05) work out if legend corresponds to colours
-sns.set_style('white')
-sns.set_palette('husl')
-for i, grp in n0108.groupby('byvar'):
-    sns.kdeplot(grp['item2d'], shade=True)
-plt.legend(n0122['byvar'].unique())
-plt.show()

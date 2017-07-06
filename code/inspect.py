@@ -1,31 +1,107 @@
 # Example of how to inspect using classes
 import numpy as np
 import pandas as pd
-import pandas.api.types as ptypes
-from statsmodels.graphics.mosaicplot import mosaic
-import statsmodels.api as sm
-import matplotlib.pyplot as plt
-import os
 import seaborn as sns
+import pandas.api.types as ptypes
+import statsmodels.api as sm
+from statsmodels.graphics.mosaicplot import mosaic
+import matplotlib.pyplot as plt
+from pprint import pprint as pp
+import os
+import yaml
 
-np.__version__
-sns.__version__
-pd.__version__
+# - [ ] @NOTE: (2017-07-06) check path when working interactively
+# %pwd
+# Import your own packages
+from inspectEHR.libs.inspectEHR import inspectEHR as ihr
 
-sns.set()
+# Global variables
+ccd_file = "inspectEHR/data/anon_public_da1000.JSON"
+ref_file = "inspectEHR/data-raw/N_DataItems.yml"
+# Import spec
+with open(ref_file, 'r') as f:
+    refs = yaml.load(f)
 
-# - [ ] @TODO: (2017-06-27) add metadata passing where metadata contains info
-# about how to manage that item
-# - [X] @TODO: (2017-06-27) add error checking to make sure data contains expected columns
+# Import data
+with open(ccd_file, 'r') as f:
+    ccd = pd.read_json(f)
+
+# Generate a range of sites and set up unique identifier
+ccd = ihr.gen_rand_sites(ccd)
+ccd = ihr.gen_id(ccd)
+
+# Generate data for testing
+# Heart rate
+n0108 = ihr.extract(ccd, 'NIHR_HIC_ICU_0108', as_type=np.int)
+# Lactate
+n0122 = ihr.extract(ccd, 'NIHR_HIC_ICU_0122', as_type=np.float)
+# Sex
+n0093 = ihr.extract(ccd, 'NIHR_HIC_ICU_0093', as_type=np.str)
+
+n0108.head(1)
+
+# Base class
+class DataRaw(object):
+    def __init__(self, dt, spec):
+        '''
+        Initiate and check dataframe with correct rows and dimensions
+        Extracts key variable definitions from data spec
+        This is the base class
+        '''
+        self.dt = dt
+        self.spec = spec
+        if spec['dateandtime']:
+            self.d1d, self.d2d = False, True
+        else:
+            self.d1d, self.d2d = True, False
+        self.label = spec['dataItem']
+
+        # Basic sanity checks
+        # Check that this is a pandas data frame
+        assert type(self.dt) == pd.core.frame.DataFrame
+        self.nrow, self.ncol = self.dt.shape
+        # Check 1 or more row is present
+        assert self.nrow > 0
+        # Check core column names
+        colnames = ['value', 'byvar']
+        assert all([i in self.dt.dtypes for i in colnames])
+        # Count unique levels of index id
+        self.id_nunique = self.dt.index.nunique()
+        # Count missing values (NB should always be zero for 2d since constructed from list)
+        self.value_nmiss = self.dt['value'].isnull().sum()
+        # Define data as 1d or 2d
+
+    def __str__(self):
+        ''' Print helpful summary of object '''
+        print(self.label, '\n')
+        print(self.dt.head(), '\n')
+        s = ' '.join(["Pandas dataframe with", str(self.nrow), "rows (first 5 shown)"])
+        return s
+
+
+
+d0108 = DataRaw(n0108, refs['NIHR_HIC_ICU_0108'])
+print(d0108)
+d0108.d1d
+print(d0108.nrow,d0108.ncol)
+d0108.dt.head(2)
+d0108.id_nunique
+print(d0108)
+
+d0093 = DataRaw(n0093)
+d0093.value_nmiss
+d0093.dt['value'].isnull().sum()
+
+
 
 
 # Load example data as pandas
-d1d = pd.read_csv(os.path.join('inspectEHR', 'data', 'height.csv'))
-d1d.head()
-d1d_cat = pd.read_csv(os.path.join('inspectEHR', 'data', 'sex.csv'))
-d1d_cat.head()
-d2d = pd.read_csv(os.path.join('inspectEHR', 'data', 'hrate.csv'))
-d2d.head()
+# d1d = pd.read_csv(os.path.join('inspectEHR', 'data', 'height.csv'))
+# d1d.head()
+# d1d_cat = pd.read_csv(os.path.join('inspectEHR', 'data', 'sex.csv'))
+# d1d_cat.head()
+# d2d = pd.read_csv(os.path.join('inspectEHR', 'data', 'hrate.csv'))
+# d2d.head()
 
 # demo data
 # d = pd.DataFrame({'x': range(5), 'y': [0.0,0.1,0.2,0.3,0.5]})
@@ -52,41 +128,6 @@ p = mosaic(d1d_cat, ['site','val'])
 plt.show()
 
 
-
-# Base class
-class DataRaw(object):
-    def __init__(self, dt):
-        '''
-        Initiate and check dataframe with correct rows and dimensions
-        This is the base class
-        '''
-        self.dt = dt
-
-        # Basic sanity checks
-        # Check that this is a pandas data frame
-        assert type(self.dt) == pd.core.frame.DataFrame
-        # Check core column names
-        colnames = ['id', 'site', 'val']
-        assert all([i in self.dt.dtypes for i in colnames])
-        # Check 1 or more row is present
-        self.r, self.c = self.dt.shape
-        assert self.r > 0
-
-    def __str__(self):
-        ''' Print helpful summary of object '''
-        print(self.dt.head())
-        print('\n')
-        s = ' '.join(["Pandas dataframe with", str(self.r), "rows (first 5 shown)"])
-        return s
-
-    def inspect(self):
-        '''
-        Pass in the values only
-        And here is some more stuff
-        '''
-        print('''Unique episodes ''', len(self.dt['id'].unique()), "available")
-        print('''Unique sites ''', len(self.dt['site'].unique()), "available")
-        print(self.dt.dtypes)
 
 
 class DataCatMixin:

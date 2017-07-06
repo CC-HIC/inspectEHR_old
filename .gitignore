@@ -101,3 +101,6 @@ ENV/
 .mypy_cache/
 data-raw
 Untitled.ipynb
+anon_public_da1000.JSON
+data
+*Untitled*.ipynb
