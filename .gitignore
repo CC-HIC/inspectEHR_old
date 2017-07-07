@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Notebooks, just used for local development
+jupyter/
+
 # IntelliJ
 *.iml
 *.ipr
