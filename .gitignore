@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
 # C extensions
 *.so
 
