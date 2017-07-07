@@ -15,8 +15,6 @@ class DataRaw:
             dt:
             spec:
         """
-        # TODO: what are these arguments?
-
         self.dt = dt
         self.spec = spec
         if spec['dateandtime']:
@@ -46,9 +44,6 @@ class DataRaw:
         print(self.dt.head(), '\n')
         s = ' '.join(["Pandas dataframe with", str(self.nrow), "rows (first 5 shown)"])
         return s
-
-    def check_dimensionality(self):
-        """Checks dimensionality according to spec."""
 
 
 class DataCatMixin:
