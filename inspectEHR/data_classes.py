@@ -8,29 +8,46 @@ import matplotlib.pyplot as plt
 
 class AutoMixinMeta(type):
     # https://stackoverflow.com/a/28205308/992999
+
     def __call__(cls, *args, **kwargs):
         try:
-            mixin = kwargs.pop('mixin')
-            # print(mixin)
-            name = "{}With{}".format(cls.__name__, mixin.__name__)
-            cls = type(name, (mixin, cls), dict(cls.__dict__))
-        except KeyError:
-            pass
+            spec = kwargs['spec']
+            # Now check the dictionary defines the datatype
+            try:
+                if spec['Datatype'] == 'numeric':
+                    mixin = DataContMixin
+                elif spec['Datatype'] in ['text', 'list']:
+                    mixin = DataCatMixin
+                else:
+                    raise ValueError
+
+            except KeyError:
+                print('!!! Missing Datatype field in specification')
+                return type.__call__(cls, *args, **kwargs)
+
+            except ValueError:
+                print('!!! Datatype field not recognised')
+                return type.__call__(cls, *args, **kwargs)
+
+        except KeyError as e:
+                print('!!! Missing specification dictionary for data')
+                return type.__call__(cls, 'no spec')
+
+        name = "{}With{}".format(cls.__name__, mixin.__name__)
+        cls = type(name, (cls, mixin), dict(cls.__dict__))
         return type.__call__(cls, *args, **kwargs)
 
 
 class DataRaw(object, metaclass=AutoMixinMeta):
 
-    def __init__(self, dt, spec, **kwargs):
-        # https://stackoverflow.com/a/12099839/992999
+    def __init__(self, dt, spec):
         """ Initiate and check dataframe with correct rows and dimensions.
             Extracts key variable definitions from data spec.
-            This is the base class, and then conditionally initiates the correct inherited class
-
+            This is the base class, and then conditionally picks the right mixins.
 
         Args:
             dt:
-            spec:
+            spec: a dictionary containing a 'Datatype' field, and ...
         """
         self.dt = dt
         self.spec = spec
@@ -59,12 +76,6 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         # Count missing values (NB should always be zero for 2d since constructed from list)
         self.value_nmiss = self.dt['value'].isnull().sum()
         # Define data as 1d or 2d
-
-    # # Action when we subclass
-    # def __init__subclass(cls, bar):
-    #     super().__init__subclass()
-    #     print('foo and bar')
-    #     cls.foo = bar
 
     def __str__(self):
         """Print helpful summary of object."""
