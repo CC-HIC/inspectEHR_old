@@ -5,14 +5,17 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.graphics.mosaicplot import mosaic
+
+os.chdir('./inspectEHR')
+
 from inspectEHR.utils import load_spec
 from inspectEHR.CCD import CCD
-from inspectEHR.data_classes import DataRaw, Data1D, Data2D_Cont
+from inspectEHR.data_classes import DataRaw, Data1D, Data2D, DataContMixin, DataCatMixin
 
 
-ccd = CCD(os.path.join(os.pardir, 'data', 'anon_public_da1000.JSON'),
+ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'),
           random_sites=True)
-refs = load_spec(os.path.join(os.pardir, 'data-raw', 'N_DataItems.yml'))
+refs = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
 
 
 # Generate data for testing
@@ -24,11 +27,42 @@ n0122 = ccd.extract('NIHR_HIC_ICU_0122', as_type=np.float)
 n0093 = ccd.extract('NIHR_HIC_ICU_0093', as_type=np.str)
 
 
-n0108.head(1)
+%load_ext autoreload
+%autoreload
+from inspectEHR.data_classes import DataRaw, Data1D, Data2D, DataContMixin, DataCatMixin
 
-
-d0108 = DataRaw(n0108, refs['NIHR_HIC_ICU_0108'])
+# Trying dynamic class initiation to make available the correct methods
+# d0108 = DataRaw(n0108, refs['NIHR_HIC_ICU_0108'])
+d0108 = DataRaw(dt=n0108, spec=refs['NIHR_HIC_ICU_0108'], mixin=DataContMixin)
 print(d0108)
+d0108.inspect()
+d0108.plot()
+d0093 = DataRaw(n0093, refs['NIHR_HIC_ICU_0093'], mixin=DataCatMixin)
+print(d0093)
+d0093.inspect()
+d0093.plot()
+
+type(d0108)
+print(d0108)
+
+# d0108 = Data1D(n0108, refs['NIHR_HIC_ICU_0108'])
+# d0108 = Data2D(n0108, refs['NIHR_HIC_ICU_0108'])
+d0108.dt.head()
+d0108.dt.describe()
+d0108.dt['value'].isnull().sum()
+d0108.dt['byvar'].value_counts()
+
+
+d0108.dt['value'].value_counts(sort=True)
+d0108.dt['value'].value_counts().sort_index().iloc[:5]
+d0108.dt['value'].value_counts().sort_index().iloc[-5:]
+
+d0108.dt['value'].value_counts(normalize=True)
+
+
+
+
+
 d0108.d1d
 print(d0108.nrow,d0108.ncol)
 d0108.dt.head(2)
