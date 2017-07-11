@@ -62,14 +62,12 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         colnames = ['value', 'byvar']
         assert all([i in self.dt.dtypes for i in colnames])
 
-        # Initiate the corrct class and make available appropriate methods
+        # Define instance characteristics
+        self.label = spec['dataItem']
         if spec['dateandtime']:
             self.d1d, self.d2d = False, True
-            # self.__class__ = Data2D
         else:
             self.d1d, self.d2d = True, False
-            # self.__class__ = Data1D
-        self.label = spec['dataItem']
 
         # Count unique levels of index id
         self.id_nunique = self.dt.index.nunique()
@@ -97,13 +95,14 @@ class DataCatMixin:
         return pd.value_counts(self.dt['value'])
 
     # tabulate by site
-    def plot(self):
+    def plot(self, by=False):
         ''' Tabulate data (if categorical) by site'''
-        # use statsmodels mosaic
-        assert ptypes.is_string_dtype(self.dt['value'])
-        mosaic(self.dt, ['value','byvar'])
+        if by:
+            # use statsmodels mosaic
+            mosaic(self.dt, ['value','byvar'])
+        else:
+            sns.countplot(self.dt['value'])
         plt.show()
-        return pd.crosstab(self.dt['byvar'], self.dt['value'])
 
 
 class DataContMixin:
@@ -113,9 +112,12 @@ class DataContMixin:
         ''' Summarise data (if numerical)'''
         return self.dt['value'].describe()
 
-    def plot(self):
-        # Plot histogram
-        sns.kdeplot(self.dt['value'])
+    def plot(self, by=False):
+        if by:
+            for name, grp in self.dt.groupby('byvar'):
+                sns.kdeplot(self.dt['value'])
+        else:
+            sns.kdeplot(self.dt['value'])
         plt.show()
 
 

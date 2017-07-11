@@ -40,10 +40,30 @@ d0108.spec
 print(d0108)
 d0108.inspect()
 d0108.plot()
+d0108.plot(by=True)
+
+
+# Method for plotting using byvar
+# dt = d0108.dt
+# for name, grp in dt.groupby('byvar'):
+#     sns.kdeplot(dt['value'])
+# plt.show()
+
+
+
+
 d0093 = DataRaw(n0093, spec=refs['NIHR_HIC_ICU_0093'])
 print(d0093)
 d0093.inspect()
 d0093.plot()
+d0093.plot(by=True)
+dt = d0093.dt
+dt.head()
+dt['value']
+sns.countplot(dt['value'])
+dt['value'].plot(kind='bar')
+plt.show()
+
 
 type(d0108)
 print(d0108)
