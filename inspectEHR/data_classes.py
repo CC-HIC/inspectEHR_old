@@ -15,9 +15,11 @@ class AutoMixinMeta(type):
             # Now check the dictionary defines the datatype
             try:
                 if spec['Datatype'] == 'numeric':
-                    mixin = DataContMixin
-                elif spec['Datatype'] in ['text', 'list']:
-                    mixin = DataCatMixin
+                    mixin = ContMixin
+                elif spec['Datatype'] in ['text', 'list', 'list / logical', 'Logical']:
+                    mixin = CatMixin
+                elif spec['Datatype'] in ['Date', 'Time', 'Date/time']:
+                    mixin = DateTimeMixin
                 else:
                     raise ValueError
 
@@ -75,6 +77,25 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         self.value_nmiss = self.dt['value'].isnull().sum()
         # Define data as 1d or 2d
 
+    # Missingness does not depend on variable type so defined in base class
+    def _prep_miss(self):
+        '''Convert data to boolean missingness summary'''
+        pass
+
+    def data_complete(self):
+        '''Report missingness by episode'''
+        pass
+
+    def data_frequency(self):
+        '''Report data frequency'''
+        try:
+            assert self.d2d
+            pass
+        except AssertionError as e:
+            print('!!! data is not timeseries, not possible to report observation frequency')
+            return e
+        pass
+
     def __str__(self):
         """Print helpful summary of object."""
         print(self.label, '\n')
@@ -84,7 +105,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         return "\n"
 
 
-class DataCatMixin:
+class CatMixin:
     ''' Categorical data methods'''
 
     # tabulate values
@@ -95,76 +116,40 @@ class DataCatMixin:
         return pd.value_counts(self.dt['value'])
 
     # tabulate by site
-    def plot(self, by=False):
-        ''' Tabulate data (if categorical) by site'''
+    def plot(self, by=False, mosaic=False, **kwargs):
+        ''' Tabulate data (if categorical) by site
+        options for plotting by strata
+        option for mosaic'''
         if by:
-            # use statsmodels mosaic
-            mosaic(self.dt, ['value','byvar'])
+            if mosaic==True:
+                # use statsmodels mosaic
+                mosaic(self.dt, ['value','byvar'], **kwargs)
+            else:
+                sns.factorplot('value',
+                    col='byvar',
+                    data=self.dt,
+                    kind='count', **kwargs)
         else:
-            sns.countplot(self.dt['value'])
+            sns.countplot(self.dt['value'], **kwargs)
         plt.show()
 
 
-class DataContMixin:
+class ContMixin:
     ''' Continuous data methods '''
 
     def inspect(self):
         ''' Summarise data (if numerical)'''
         return self.dt['value'].describe()
 
-    def plot(self, by=False):
+    def plot(self, by=False, **kwargs):
         if by:
             for name, grp in self.dt.groupby('byvar'):
-                sns.kdeplot(self.dt['value'])
+                sns.kdeplot(self.dt['value'], **kwargs)
         else:
-            sns.kdeplot(self.dt['value'])
+            sns.kdeplot(self.dt['value'], **kwargs)
         plt.show()
 
 
-# class Data1D(DataCatMixin, DataRaw):
-#     ''' A 1d version of data raw '''
-#     def __init__(self, dt):
-#         super().__init__(dt)
-#         print('made some 1d')
-
-
-# class Data2D_Cont(DataRaw, DataContMixin):
-#     '''
-#     A 2d version of DataCont
-#     '''
-#     def __init__(self, dt):
-#         super().__init__(dt)
-#         # Expects categories to be float or int
-#         assert ptypes.is_any_int_dtype(self.dt['val']) \
-#             | ptypes.is_float_dtype(self.dt['val'])
-#         # Check time provided
-#         assert 'time' in self.dt.dtypes
-#         print(self.dt.head())
-
-class Data2D(DataRaw, DataContMixin, DataCatMixin):
-    '''
-    A 2d version of DataRaw
-    Borrows methods from DataCont and DataCat Mixins
-    '''
-    def __init__(self, dt, spec):
-        super().__init__(dt, spec)
-        # assert 'time' in self.dt.colnames
-        print('made some 2d, spam')
-        print(self.dt.head())
-
-    def spam(self):
-        '''
-        testing
-        '''
-        print('eggs')
-
-
-class Data1D(DataRaw, DataContMixin, DataCatMixin):
-    '''
-    A 1d version of DataRaw
-    Borrows methods from DataCont and DataCat Mixins
-    '''
-    def __init__(self, dt, spec):
-        super().__init__(dt, spec)
-        print('made some 1d')
-        print(self.dt.head())
+class DateTimeMixin:
+    ''' Date/Time methods'''
+    pass

@@ -10,7 +10,7 @@ os.chdir('./inspectEHR')
 
 from inspectEHR.utils import load_spec
 from inspectEHR.CCD import CCD
-from inspectEHR.data_classes import DataRaw, Data1D, Data2D, DataContMixin, DataCatMixin
+from inspectEHR.data_classes import DataRaw, ContMixin, CatMixin
 
 
 ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'),
@@ -25,11 +25,13 @@ n0108 = ccd.extract('NIHR_HIC_ICU_0108', as_type=np.int)
 n0122 = ccd.extract('NIHR_HIC_ICU_0122', as_type=np.float)
 # Sex
 n0093 = ccd.extract('NIHR_HIC_ICU_0093', as_type=np.str)
+# Height
+n0017 = ccd.extract('NIHR_HIC_ICU_0017', as_type=np.str)
 
 
 %load_ext autoreload
 %autoreload
-from inspectEHR.data_classes import DataRaw, Data1D, Data2D, DataContMixin, DataCatMixin
+from inspectEHR.data_classes import DataRaw, ContMixin, CatMixin
 
 # Trying dynamic class initiation to make available the correct methods
 # d0108 = DataRaw(n0108, refs['NIHR_HIC_ICU_0108'])
