@@ -50,9 +50,11 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         Args:
             dt:
             spec: a dictionary containing a 'Datatype' field, and ...
+            ids: index from the CCD object (i.e. the potential data list)
         """
         self.dt = dt
         self.spec = spec
+
 
         # Basic sanity checks
         # Check that this is a pandas data frame
@@ -78,23 +80,37 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         # Define data as 1d or 2d
 
     # Missingness does not depend on variable type so defined in base class
-    def _prep_miss(self):
-        '''Convert data to boolean missingness summary'''
-        pass
 
     def data_complete(self):
         '''Report missingness by episode'''
-        pass
+        print('Reporting data completeness by available episodes')
+        if self.d1d:
+            return self.dt['value'].notnull().value_counts()
+        else:
+            # Look for ids with no data
+            # Classify if null, then make one row per index
+            d = self.dt[['value']].notnull().reset_index().drop_duplicates()
+            # Return
+            return d['value'].value_counts()
+
 
     def data_frequency(self):
         '''Report data frequency'''
         try:
             assert self.d2d
-            pass
+            dt = self.dt.copy()
+            dt['time_diff'] = dt.groupby(level=0)[['time']].diff().astype('timedelta64[s]') / 3600
+            dt = dt.groupby(level=0)[['time_diff']].mean()
+            return dt
         except AssertionError as e:
             print('!!! data is not timeseries, not possible to report observation frequency')
             return e
-        pass
+
+    def plot_frequency(self, **kwargs):
+        '''Plot data frequency'''
+        dt = self.data_frequency()
+        sns.kdeplot(dt['time_diff'], **kwargs)
+        plt.show()
 
     def __str__(self):
         """Print helpful summary of object."""
