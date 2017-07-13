@@ -1,4 +1,10 @@
 # Example of how to inspect using classes
+# Expects to be run from project directory
+# ipython magic commands for re-loading modules during development
+# - [ ] @NOTE: (2017-07-13) for interactive use
+%load_ext autoreload
+%autoreload
+
 import os
 import numpy as np
 import pandas as pd
@@ -6,18 +12,13 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.graphics.mosaicplot import mosaic
 
-os.chdir('./inspectEHR')
-
-%load_ext autoreload
-%autoreload
 
 from inspectEHR.utils import load_spec
 from inspectEHR.CCD import CCD
 from inspectEHR.data_classes import DataRaw, ContMixin, CatMixin
 
 
-ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'),
-          random_sites=True)
+ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'), random_sites=True)
 refs = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
 
 
@@ -25,8 +26,14 @@ refs = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
 # Heart rate
 n0108 = ccd.extract('NIHR_HIC_ICU_0108', as_type=np.int)
 n0108 = ccd.extract('NIHR_HIC_ICU_0108', as_type=np.int, drop_miss=False)
+d0108 = DataRaw(n0108, spec=refs['NIHR_HIC_ICU_0108'])
+df = d0108.gap_startstop(ccd)
+
 # Lactate
 n0122 = ccd.extract('NIHR_HIC_ICU_0122', as_type=np.float)
+d0122 = DataRaw(n0122, spec=refs['NIHR_HIC_ICU_0122'])
+df = d0122.gap_startstop(ccd)
+sns.kdeplot(df['stop'].dropna())
 # Sex
 n0093 = ccd.extract('NIHR_HIC_ICU_0093', as_type=np.str)
 # Height

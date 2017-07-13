@@ -24,6 +24,14 @@ class CCD:
         self._add_random_sites()
         self._add_unique_ids()
 
+
+    def __str__(self):
+        '''Print helpful summary of object'''
+        print(self.ccd.head())
+        txt = ['\n']
+        txt.extend(['CCD object containing data from', self.json_filepath])
+        return ' '.join(txt)
+
     def _load_from_json(self):
         """ Reads in CCD object into pandas DataFrame, checks that format is as expected."""
         with open(self.json_filepath, 'r') as f:

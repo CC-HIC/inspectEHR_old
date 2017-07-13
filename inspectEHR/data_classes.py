@@ -94,19 +94,54 @@ class DataRaw(object, metaclass=AutoMixinMeta):
             return d['value'].value_counts()
 
 
-    def data_frequency(self):
-        '''Report data frequency'''
+    def gap_startstop(self, ccd):
+        '''Report timedelta before first and last measurement for each episode
+        Args:
+            ccd: the ccd object from which the data was derived
+        Yields:
+            df: data frame, one row per episode with start stop time differences (hours)
+        '''
+        # Define min/max times for these measures
+        try:
+            assert self.d2d
+            t_min = self.dt.groupby(level=0)[['time']].min().astype('timedelta64[s]')
+            t_min.rename(columns={'time': 't_min'}, inplace=True)
+            t_max = self.dt.groupby(level=0)[['time']].max().astype('timedelta64[s]')
+            t_max.rename(columns={'time': 't_max'}, inplace=True)
+        except AssertionError as e:
+            print('!!! data is not timeseries, not possible to report start/stop gaps')
+            return e
+        # Now join admission/discharge on min/max times and calculate start/stop gaps
+        try:
+            dtt = ccd.ccd[['t_admission', 't_discharge']]
+        except KeyError as e:
+            print('!!! ccd does not contain t_admission and t_discharge fields')
+            return e
+
+        dtt = pd.merge(dtt, t_min,
+                    left_index=True, right_index=True, how='left')
+        dtt = pd.merge(dtt, t_max,
+                    left_index=True, right_index=True, how='left')
+        dtt['start'] = dtt['t_admission'] - dtt['t_min']
+        dtt['stop'] = dtt['t_discharge'] - dtt['t_max']
+        dtt = dtt[['start', 'stop']]
+
+        # Return in hours not seconds
+        return dtt / 3600
+
+    def gap_frequency(self):
+        '''Report data frequency (measurement period in hours)'''
         try:
             assert self.d2d
             dt = self.dt.copy()
-            dt['time_diff'] = dt.groupby(level=0)[['time']].diff().astype('timedelta64[s]') / 3600
+            dt['time_diff'] = dt.groupby(level=0)[['time']].diff().astype('timedelta64[h]')
             dt = dt.groupby(level=0)[['time_diff']].mean()
             return dt
         except AssertionError as e:
             print('!!! data is not timeseries, not possible to report observation frequency')
             return e
 
-    def plot_frequency(self, **kwargs):
+    def gap_plot(self, **kwargs):
         '''Plot data frequency'''
         dt = self.data_frequency()
         sns.kdeplot(dt['time_diff'], **kwargs)
