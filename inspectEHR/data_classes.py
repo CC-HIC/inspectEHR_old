@@ -143,7 +143,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
 
     def gap_plot(self, **kwargs):
         '''Plot data frequency'''
-        dt = self.data_frequency()
+        dt = self.gap_frequency()
         sns.kdeplot(dt['time_diff'], **kwargs)
         plt.show()
 

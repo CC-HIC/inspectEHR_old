@@ -4,7 +4,7 @@ import pandas as pd
 
 
 class CCD:
-    def __init__(self, json_filepath, random_sites=True, random_sites_list=list('ABCDE'),
+    def __init__(self, json_filepath, random_sites=False, random_sites_list=list('ABCDE'),
                  id_columns=('site_id', 'episode_id')):
         """ Reads and processes CCD object, provides methods to extract NHIC data items.
 
