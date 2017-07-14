@@ -1,7 +1,10 @@
 # Import JSON and load into SQLlite
+# Makes an infotb table with the basic data information for each episode
+# Then makes a
 import sqlite3
 import json
 import os
+import pandas as pd
 
 # Load JSON data
 json_data_path = os.path.join('data-raw', 'anon_public_da1000.JSON')
@@ -51,24 +54,38 @@ c.execute("select * from infotb")
 print(c.fetchone())
 
 
+# - [ ] @NOTE: (2017-07-14) messy way of handling index that is generated via itertuples
+# which means that we have to drop the column by recreating the whole table at the end
+
 # Now do the same for the 1d data
 query = "DROP TABLE IF EXISTS item_tb"
 c.execute(query)
-query = "CREATE TABLE IF NOT EXISTS item_tb(site_id TEXT, episode_id INT, time INT, NHICcode TEXT, value)"
+# use tmp field as throw away
+query = "CREATE TABLE IF NOT EXISTS item_tb(site_id TEXT, episode_id INT, time REAL, NHICcode TEXT, value, tmp)"
 c.execute(query)
-# for episode in episodes[:1]:
+
 for episode in episodes:
+    val_dict = {rk:rv for rk,rv in episode.items() if rk in ['site_id', 'episode_id']}
     for k,v in episode['data'].items():
+        # Ignore the pid and spell data items (extracted already)
         if k in ['pid', 'spell']:
             continue
         else:
-            val_dict = {rk:rv for rk,rv in episode.items() if rk in ['site_id', 'episode_id']}
-            # 2d items
             if type(v) is dict:
-                pass
-            # 1d items
+                # assumes dict indicates a 2d items
+                df = pd.DataFrame.from_records(
+                    list(zip(v['item2d'], v['time'])),
+                    columns=['value', 'time'])
+                df['NHICcode'] = k
+                df['site_id'] = episode['site_id']
+                df['episode_id'] = episode['episode_id']
+                df.rename_axis('tmp')
+                cols = list(df.columns)
+                cols.insert(0, 'tmp')
+                query = "insert into item_tb (" + ", ".join(cols) + ")" + " VALUES(:" + ", :".join(cols) + ")"
+                c.executemany(query, df.itertuples())
             else:
-                # print(k, v)
+                # 1d items
                 val_dict['NHICcode'] = k
                 val_dict['value'] = v
                 q1 = "insert into item_tb (site_id, episode_id, NHICcode, value)"
@@ -76,9 +93,23 @@ for episode in episodes:
                 query = q1 + q2
                 c.execute(query, val_dict)
 
-
-    # infotb_values = [v for k,v in episode.items() if k != 'data' ]
-    # print(infotb_values)
-
 conn.commit()
+# list(df.columns)
+# df.head()
+
+
+# Cannot drop column so let's recreate table
+query = "DROP TABLE IF EXISTS tmp"
+c.execute(query)
+query = "CREATE TABLE IF NOT EXISTS tmp(site_id TEXT, episode_id INT, time REAL, NHICcode TEXT, value)"
+c.execute(query)
+conn.commit()
+query = "INSERT INTO tmp (site_id, episode_id, time, NHICcode, value) SELECT site_id, episode_id, time, NHICcode, value FROM item_tb"
+c.execute(query)
+conn.commit()
+c.execute("DROP TABLE IF EXISTS item_tb")
+c.execute("ALTER TABLE tmp RENAME TO item_tb")
+conn.commit()
+
+
 conn.close()
