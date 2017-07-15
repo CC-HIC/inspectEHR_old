@@ -8,6 +8,7 @@
 
 
 import os
+import warnings
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -19,14 +20,6 @@ from inspectEHR.utils import load_spec
 from inspectEHR.CCD import CCD
 from inspectEHR.data_classes import DataRaw, ContMixin, CatMixin
 
-
-ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'), random_sites=True)
-ccd_data = ccd.ccd
-# ccd = CCD(os.path.join('data-raw', 'anon_internal.JSON'), random_sites=True)
-refs = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
-
-import warnings
-
 # - [ ] @TODO: (2017-07-15)  make a unique key from ccd (just integer would do)
 #   use this to index the item_tb table
 def extract_all(ccd, d1or2=1, ccd_key = ['site_id', 'episode_id']):
@@ -36,9 +29,11 @@ def extract_all(ccd, d1or2=1, ccd_key = ['site_id', 'episode_id']):
         d1or2: [1,2] 1d or 2d data
         ccd_key: unique key to be stored from ccd object; defaults to site/episode
     '''
+
     # warnings.warn('\n!!! Debugging - only runs first 5 rows')
     # dfin = ccd.ccd.head()
     dfin = ccd.ccd
+
     # Check type and key
     assert type(dfin) == pd.core.frame.DataFrame
     try:
@@ -90,26 +85,36 @@ def extract_2d(dfin, ccd_key):
         row_key = {k:getattr(row, k) for k in ccd_key}
 
         for i, (nhic, d) in enumerate(row.data.items()):
-            if type(d) == dict:  # If 2d then data stored as dict of lists
-                df = pd.DataFrame(d)
+            if type(d) != dict:  # If 2d then data stored as dict of lists
+                continue
+            else:
+                df = pd.DataFrame.from_dict(d)
                 df['NHICcode'] = nhic
                 df_from_data.append(df)
-            df = pd.concat(df_from_data)
-            for k,v in row_key.items():
-                df[k] = v
-            df_from_rows.append(df)
+
+        df = pd.concat(df_from_data)
+        for k,v in row_key.items():
+            df[k] = v
+        df_from_rows.append(df)
 
     df = pd.concat(df_from_rows)
     return df
 
-df2d = extract_all(ccd, 2)
-df2d.shape
-df2d.head()
-df2d.reset_index(inplace=True)
-df2d.to_feather('data/item_2d.feather')
 
-df1d = extract_all(ccd, 1)
-df1d.shape
-df1d.head()
-df1d.reset_index(inplace=True)
-df1d.to_feather('data/item_1d.feather')
+if __name__ == "__main__":
+    ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'), random_sites=True)
+    # ccd = CCD(os.path.join('data-raw', 'anon_internal.JSON'), random_sites=True)
+    ccd_data = ccd.ccd
+    refs = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
+
+    df2d = extract_all(ccd, 2)
+    # df2d.shape
+    # df2d.head()
+    df2d.reset_index(inplace=True)
+    df2d.to_feather('data/item_2d.feather')
+
+    df1d = extract_all(ccd, 1)
+    # df1d.shape
+    # df1d.head()
+    df1d.reset_index(inplace=True)
+    df1d.to_feather('data/item_1d.feather')
