@@ -1,15 +1,24 @@
+#! python
 # Import JSON and load into SQLlite
 # Makes an infotb table with the basic data information for each episode
-# Then makes a
+
+# TODO
+# - [ ] @TODO: (2017-07-15) optimise storage: (integer for NHIC code not string)
+# - [ ] @TODO: (2017-07-15) optimise storage: single integer id to link to site/episode key
+# - [ ] @TODO: (2017-07-15) store 2d as json (then split out 1d) into separate tables
+
+
 import sqlite3
 import json
 import os
 import pandas as pd
 
 # Load JSON data
-json_data_path = os.path.join('data-raw', 'anon_public_da1000.JSON')
+# json_data_path = os.path.join('data-raw', 'anon_public_da1000.JSON')
+json_data_path = os.path.join('data-raw', 'anon_internal.JSON')
 with open(json_data_path) as fin:
     episodes = json.load(fin)
+print('loaded json')
 print(episodes[:1])
 
 infotb_fields = {
@@ -52,7 +61,7 @@ for episode in episodes:
 
 c.execute("select * from infotb")
 print(c.fetchone())
-
+print('loaded infotb')
 
 # - [ ] @NOTE: (2017-07-14) messy way of handling index that is generated via itertuples
 # which means that we have to drop the column by recreating the whole table at the end
@@ -111,5 +120,15 @@ c.execute("DROP TABLE IF EXISTS item_tb")
 c.execute("ALTER TABLE tmp RENAME TO item_tb")
 conn.commit()
 
+
+c.execute("select * from item_tb")
+c.fetchone()
+
+# Make covering index (not particularly fast for retrieving NHICcode)
+c.execute("CREATE INDEX  IF NOT EXISTS cover ON item_tb \
+        (site_id, NHICcode, episode_id, time, value) ")
+
+c.execute("CREATE INDEX  IF NOT EXISTS nhic ON item_tb \
+        ( NHICcode) ")
 
 conn.close()
