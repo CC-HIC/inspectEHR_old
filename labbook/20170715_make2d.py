@@ -29,14 +29,16 @@ import warnings
 
 # - [ ] @TODO: (2017-07-15)  make a unique key from ccd (just integer would do)
 #   use this to index the item_tb table
-def extract_2d(ccd, ccd_key = ['site_id', 'episode_id']):
+def extract_all(ccd, d1or2=1, ccd_key = ['site_id', 'episode_id']):
     '''Extracts all data in ccd object to single data frame and stores feather object
     Args:
         ccd: ccd object (data frame with data column containing dictionary of dictionaries)
+        d1or2: [1,2] 1d or 2d data
         ccd_key: unique key to be stored from ccd object; defaults to site/episode
     '''
     # warnings.warn('\n!!! Debugging - only runs first 5 rows')
-    dfin = ccd.ccd.head()
+    # dfin = ccd.ccd.head()
+    dfin = ccd.ccd
     # Check type and key
     assert type(dfin) == pd.core.frame.DataFrame
     try:
@@ -49,39 +51,65 @@ def extract_2d(ccd, ccd_key = ['site_id', 'episode_id']):
         print('!!! ccd_key should be a list of column names')
         return e
 
+    msg = '*** Extracting all {}d data from {} rows'.format(d1or2, dfin.shape[0])
+    if d1or2 == 1:
+        print(msg)
+        return extract_1d(dfin, ccd_key)
+    else:
+        print(msg)
+        return extract_2d(dfin, ccd_key)
+
+
+def extract_1d(dfin, ccd_key):
     df_from_rows = []
+
     for row in dfin.itertuples():
         df_from_data = []
         row_key = {k:getattr(row, k) for k in ccd_key}
-        # print(row_key)
+
         for i, (nhic, d) in enumerate(row.data.items()):
-            # if i > 5:
-            #     warnings.warn('\n!!!: Debugging')
-            #     break
+            # Assumes 2d data stored as dictionary
+            if type(d) == dict:
+                continue
+            else:
+                df_from_data.append({'NHICcode': nhic, 'item1d': d})
+
+        df = pd.DataFrame(df_from_data)
+        for k,v in row_key.items():
+            df[k] = v
+        df_from_rows.append(df)
+
+    df = pd.concat(df_from_rows)
+    return df
+
+def extract_2d(dfin, ccd_key):
+    df_from_rows = []
+
+    for row in dfin.itertuples():
+        df_from_data = []
+        row_key = {k:getattr(row, k) for k in ccd_key}
+
+        for i, (nhic, d) in enumerate(row.data.items()):
             if type(d) == dict:  # If 2d then data stored as dict of lists
                 df = pd.DataFrame(d)
                 df['NHICcode'] = nhic
                 df_from_data.append(df)
-            # Now add your row key
             df = pd.concat(df_from_data)
             for k,v in row_key.items():
                 df[k] = v
-            # Now append to list of data constructed from rows
             df_from_rows.append(df)
 
     df = pd.concat(df_from_rows)
-    # print(df.head())
     return df
 
-df2d = extract_2d(ccd)
-df2d.head()
+df2d = extract_all(ccd, 2)
 df2d.shape
-
-df = df2d.loc[df2d['NHICcode'] == 'NIHR_HIC_ICU_0108']
-
-
+df2d.head()
 df2d.reset_index(inplace=True)
 df2d.to_feather('data/item_2d.feather')
-df_in = pd.read_feather('data/item_tb.feather')
-df.dtypes
-df.info
+
+df1d = extract_all(ccd, 1)
+df1d.shape
+df1d.head()
+df1d.reset_index(inplace=True)
+df1d.to_feather('data/item_1d.feather')
