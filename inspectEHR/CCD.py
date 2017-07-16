@@ -115,8 +115,8 @@ class CCD:
             return result
 
 
-    def extract(self, nhic_code, by="site_id", as_type=None, drop_miss=True):
-        """ Extract an NHIC data item.
+    def extract_one(self, nhic_code, by="site_id", as_type=None, drop_miss=True):
+        """ Extract a single NHIC data item directly from ccd object
 
         Args:
             nhic_code (str): Reference for item to extract, e.g. 'NIHR_HIC_ICU_0108'
@@ -136,3 +136,139 @@ class CCD:
             return df
         else:
             return self._preserve_missingness(df, by)
+
+    def extract_all(self, d1or2=1,
+            ccd_key = ['site_id', 'episode_id'],
+            save2feather=False,
+            path=None,
+            progress_marker=True):
+        '''Extracts all data in ccd object to single data frame and stores feather object
+        Args:
+            ccd: ccd object (data frame with data column containing dictionary of dictionaries)
+            d1or2: [1,2] 1d or 2d data
+            ccd_key: unique key to be stored from ccd object; defaults to site/episode
+            save2feather: saves a copy to feather format
+            path: path to save feather file
+            progress_marker: displays a dot every 10 records
+        '''
+
+        # warnings.warn('\n!!! Debugging - only runs first 5 rows')
+        # dfin = ccd.ccd.head()
+        # dfin = self.ccd
+
+        # Check type and key
+        # assert type(dfin) == pd.core.frame.DataFrame
+        try:
+            assert all([k in self.ccd.columns for k in ccd_key])
+        except TypeError as e:
+            # ccd_key not list?
+            print('!!! ccd_key should be a list of column names')
+            return e
+
+        msg = '\n*** Extracting all {}d data from {} rows'.format(d1or2, self.ccd.shape[0])
+        if d1or2 == 1:
+            print(msg)
+            df = self._extract_1d(ccd_key, progress_marker)
+            if save2feather:
+                self.df2feather(df, path)
+            else:
+                print('\n!!! Not saved to feather')
+            return df
+        else:
+            print(msg)
+            df = self._extract_2d(ccd_key, progress_marker)
+            if save2feather:
+                self.df2feather(df, path)
+            else:
+                print('\n!!! Not saved to feather')
+            return df
+
+    @staticmethod
+    def df2feather(df, path):
+        '''Save dataframe to feather'''
+        # Resets index to ensure unique for feather format
+        df.reset_index(inplace=True, drop=True)
+        try:
+            df.to_feather(path)
+        except NotImplementedError as e:
+            warnings.warn('\n!!! converting time timedelta64 to numeric to save to feather')
+            df['time'] = pd.to_numeric(df['time'])
+            df.to_feather(path)
+        except IOError as e:
+            warnings.warn('\n!!! Unable to save dataframe - do this now manually')
+            print(e)
+
+    @staticmethod
+    def _ccd2hdf(dd, path):
+        """Save list of data frames to HDF5 store"""
+        if type(dd) is not dict:
+            raise ValueError('Expects dictionary of dataframes')
+        store = pd.HDFStore(path, mode='w')
+        {store.put(k,v) for k,v in dd.items()}
+        print(store)
+        store.close()
+
+
+    def _extract_1d(self, ccd_key, progress_marker):
+        df_from_rows = []
+        i = 0
+
+        for row in self.ccd.itertuples():
+            if progress_marker:
+                if i%10 == 0:
+                    print(".", end='')
+                i += 1
+            df_from_data = []
+            row_key = {k:getattr(row, k) for k in ccd_key}
+
+            for i, (nhic, d) in enumerate(row.data.items()):
+                # Assumes 2d data stored as dictionary
+                if type(d) == dict:
+                    continue
+                else:
+                    df_from_data.append({'NHICcode': nhic, 'item1d': d})
+
+            df = pd.DataFrame(df_from_data)
+            for k,v in row_key.items():
+                df[k] = v
+            df_from_rows.append(df)
+
+        df = pd.concat(df_from_rows)
+        return df
+
+    def _extract_2d(self, ccd_key, progress_marker):
+        df_from_rows = []
+        i = 0
+
+        for row in self.ccd.itertuples():
+
+            if progress_marker:
+                if i%10 == 0:
+                    print(".", end='')
+                i += 1
+
+            row_key = {k:getattr(row, k) for k in ccd_key}
+
+            try:
+                df = row.data
+                df = {k:pd.DataFrame.from_dict(v) for k,v in df.items() if type(v) is dict}
+                df = pd.concat(df)
+                df.reset_index(level=0, inplace=True)
+                df.rename(columns={'level_0':'NHICcode'}, inplace=True)
+
+                for k,v in row_key.items():
+                    df[k] = v
+                df_from_rows.append(df)
+            except ValueError as e:
+                # unable to concatenate, no data?
+                print('!!! Value error for {}'.format(row_key))
+                print(e)
+                continue
+            except Exception as e:
+                print('!!! Error for {}'.format(row_key))
+                print(e)
+                continue
+
+        df = pd.concat(df_from_rows)
+        df['time'] = pd.to_timedelta(df['time'], unit='h')
+        return df
