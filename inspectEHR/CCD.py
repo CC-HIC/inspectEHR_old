@@ -60,7 +60,7 @@ class CCD:
         self.ccd.set_index('id', inplace=True)  # Set index
 
     def _build_df(self, nhic_code, by):
-        """ Build DataFrame for specific item."""
+        """ Build DataFrame for specific item from original JSON."""
         # TODO: Eliminate loop
         individual_dfs = []
         for row in self.ccd.itertuples():
@@ -137,51 +137,36 @@ class CCD:
         else:
             return self._preserve_missingness(df, by)
 
-    def extract_all(self, d1or2=1,
+    def json2hdf(self,
             ccd_key = ['site_id', 'episode_id'],
-            save2feather=False,
             path=None,
             progress_marker=True):
-        '''Extracts all data in ccd object to single data frame and stores feather object
+        '''Extracts all data in ccd object to infotb, 1d, and 2d data frames in HDF5
         Args:
             ccd: ccd object (data frame with data column containing dictionary of dictionaries)
-            d1or2: [1,2] 1d or 2d data
             ccd_key: unique key to be stored from ccd object; defaults to site/episode
-            save2feather: saves a copy to feather format
-            path: path to save feather file
+            path: path to save file
             progress_marker: displays a dot every 10 records
         '''
+        if path is None:
+            raise NameError('No path provided to which to save the HDF5 file')
+        if not all([k in self.ccd.columns for k in ccd_key]):
+            raise KeyError('!!! ccd_key should be a list of column names')
 
-        # warnings.warn('\n!!! Debugging - only runs first 5 rows')
-        # dfin = ccd.ccd.head()
-        # dfin = self.ccd
+        # Extract and save infotb
+        print('\n*** Extracting all infotb data from {} rows'.format(self.ccd.shape[0]))
+        infotb = self._extract_infotb()
 
-        # Check type and key
-        # assert type(dfin) == pd.core.frame.DataFrame
-        try:
-            assert all([k in self.ccd.columns for k in ccd_key])
-        except TypeError as e:
-            # ccd_key not list?
-            print('!!! ccd_key should be a list of column names')
-            return e
+        # Extract and save 1d
+        print('\n*** Extracting all {}d data from {} rows'.format(1, self.ccd.shape[0]))
+        item_1d = self._extract_1d(ccd_key, progress_marker)
 
-        msg = '\n*** Extracting all {}d data from {} rows'.format(d1or2, self.ccd.shape[0])
-        if d1or2 == 1:
-            print(msg)
-            df = self._extract_1d(ccd_key, progress_marker)
-            if save2feather:
-                self.df2feather(df, path)
-            else:
-                print('\n!!! Not saved to feather')
-            return df
-        else:
-            print(msg)
-            df = self._extract_2d(ccd_key, progress_marker)
-            if save2feather:
-                self.df2feather(df, path)
-            else:
-                print('\n!!! Not saved to feather')
-            return df
+        # Extract and save 2d
+        print('\n*** Extracting all {}d data from {} rows'.format(2, self.ccd.shape[0]))
+        item_2d = self._extract_2d(ccd_key, progress_marker)
+
+        dd = {'item_1d': item_1d, 'item_2d': item_2d, 'infotb':infotb}
+        self._ccd2hdf(dd, path)
 
     @staticmethod
     def df2feather(df, path):
@@ -208,8 +193,33 @@ class CCD:
         print(store)
         store.close()
 
+    def _extract_infotb(self):
+        """Extract infotb from after JSON import"""
+        cols_2drop = ['data']
+        cols_timedelta = ['t_admission', 't_discharge', 'parse_time']
+
+        cols_2keep = [i for i  in self.ccd.columns if i not in cols_2drop]; cols_2keep
+        rows_out = []
+        
+        for row in self.ccd.itertuples():
+            row_in = row._asdict()
+            row_out = {k:v for k,v in row_in.items() if k != 'data'}
+            try:
+                row_out['spell'] = row_in['data']['spell']
+                row_out['pid'] = row_in['data']['pid']
+            except ValueError as e:
+                row_out['spell'] = None
+                row_out['pid'] = None
+            rows_out.append(row_out)
+
+        infotb = pd.DataFrame(rows_out)
+        for col in cols_timedelta:
+            infotb[col] = pd.to_timedelta(infotb[col], unit='s')
+
+        return infotb
 
     def _extract_1d(self, ccd_key, progress_marker):
+        """Extract 1d data from nested dictionary in dataframe after JSON import"""
         df_from_rows = []
         i = 0
 
@@ -237,6 +247,7 @@ class CCD:
         return df
 
     def _extract_2d(self, ccd_key, progress_marker):
+        """Extract 2d data from nested dictionary in dataframe after JSON import"""
         df_from_rows = []
         i = 0
 
