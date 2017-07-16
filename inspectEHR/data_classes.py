@@ -1,5 +1,6 @@
 import pandas as pd
 import seaborn as sns
+import numpy as np
 import pandas.api.types as ptypes
 from statsmodels.graphics.mosaicplot import mosaic
 import matplotlib.pyplot as plt
@@ -10,65 +11,91 @@ class AutoMixinMeta(type):
     # https://stackoverflow.com/a/28205308/992999
 
     def __call__(cls, *args, **kwargs):
-        try:
-            spec = kwargs['spec']
-            # Now check the dictionary defines the datatype
+        # - [ ] @TODO: (2017-07-16) allow just 4 digit version of code
+
+        NHICcode = args[0]
+
+        if DataRaw.spec is None:
             try:
-                if spec['Datatype'] == 'numeric':
-                    mixin = ContMixin
-                elif spec['Datatype'] in ['text', 'list', 'list / logical', 'Logical']:
-                    mixin = CatMixin
-                elif spec['Datatype'] in ['Date', 'Time', 'Date/time']:
-                    mixin = DateTimeMixin
-                else:
-                    raise ValueError
+                DataRaw.spec = kwargs['spec']
+            except KeyError as e:
+                raise KeyError('!!! Data dictionary (fspec) not provided as keyword argument')
 
-            except KeyError:
-                print('!!! Missing Datatype field in specification')
-                return type.__call__(cls, *args, **kwargs)
 
-            except ValueError:
-                print('!!! Datatype field not recognised')
-                return type.__call__(cls, *args, **kwargs)
-
+        try:
+            fspec = DataRaw.spec[NHICcode]
         except KeyError as e:
-                print('!!! Missing specification dictionary for data')
-                return type.__call__(cls, 'no spec')
+            raise KeyError('!!! {} not found in {}.format(NHICcode, spec)')
+
+        # Now check the dictionary defines the datatype
+        try:
+            if fspec['Datatype'] == 'numeric':
+                mixin = ContMixin
+            elif fspec['Datatype'] in ['text', 'list', 'list / logical', 'Logical']:
+                mixin = CatMixin
+            elif fspec['Datatype'] in ['Date', 'Time', 'Date/time']:
+                mixin = DateTimeMixin
+            else:
+                raise ValueError
+        except KeyError:
+            raise KeyError("!!! Missing 'Datatype' in specification")
+        except ValueError:
+            raise ValueError('!!! Datatype field not recognised')
 
         name = "{}With{}".format(cls.__name__, mixin.__name__)
         cls = type(name, (cls, mixin), dict(cls.__dict__))
+
         return type.__call__(cls, *args, **kwargs)
 
-
 class DataRaw(object, metaclass=AutoMixinMeta):
+    """ Initiate and check dataframe with correct rows and dimensions.
+        Extracts key variable definitions from data spec.
+        This is the base class, and then conditionally picks the right mixins.
 
-    def __init__(self, dt, spec):
-        """ Initiate and check dataframe with correct rows and dimensions.
-            Extracts key variable definitions from data spec.
-            This is the base class, and then conditionally picks the right mixins.
+    Args:
+        NHICcode:
+        ccd:
+        spec: data dictionary
+    """
 
-        Args:
-            dt:
-            spec: a dictionary containing a 'Datatype' field, and ...
-            ids: index from the CCD object (i.e. the potential data list)
-        """
-        self.dt = dt
-        self.spec = spec
+    ccd = None
+    spec = None
+    foo = 0
 
+    def __init__(self, NHICcode, ccd=None, spec=None):
+        """Initiate and create a data frame for the specific items"""
 
-        # Basic sanity checks
-        # Check that this is a pandas data frame
-        assert type(self.dt) == pd.core.frame.DataFrame
-        self.nrow, self.ncol = self.dt.shape
-        # Check 1 or more row is present
-        assert self.nrow > 0
-        # Check core column names
-        colnames = ['value', 'byvar']
-        assert all([i in self.dt.dtypes for i in colnames])
+        # Class not instance variables
+        if DataRaw.ccd is None:
+            try:
+                print('*** First initialisation of DataRaw class')
+                print('*** Loading ccd and spec')
+                DataRaw.ccd = ccd
+                DataRaw.spec = spec
+            except TypeError as e:
+                print('!!! You must provide a ccd data object and a spec')
+                return e
+
+        self.NHICcode = NHICcode
+        self.fspec = DataRaw.spec[NHICcode]
+        # - [ ] @TODO: (2017-07-16) work out how to add integer types
+        if self.fspec['Datatype'] in  ['numeric']:
+            fdtype = np.float
+        elif self.fspec['Datatype'] in ['text', 'list', 'list / logical', 'Logical']:
+            fdtype = np.str
+        elif self.fspec['Datatype'] in ['Date', 'Time', 'Date/time']:
+            fdtype = np.datetime64
+        else:
+            raise ValueError('!!! field specification datatype not recognised')
+
+        self.dt = DataRaw.ccd.extract_one(NHICcode, as_type=fdtype)
 
         # Define instance characteristics
-        self.label = spec['dataItem']
-        if spec['dateandtime']:
+        self.label = self.fspec['dataItem']
+        self.nrow, self.ncol = self.dt.shape
+
+        # Define data as 1d or 2d
+        if self.fspec['dateandtime']:
             self.d1d, self.d2d = False, True
         else:
             self.d1d, self.d2d = True, False
@@ -77,10 +104,11 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         self.id_nunique = self.dt.index.nunique()
         # Count missing values (NB should always be zero for 2d since constructed from list)
         self.value_nmiss = self.dt['value'].isnull().sum()
-        # Define data as 1d or 2d
+
+        DataRaw.foo += 1
+
 
     # Missingness does not depend on variable type so defined in base class
-
     def data_complete(self):
         '''Report missingness by episode'''
         print('Reporting data completeness by available episodes')

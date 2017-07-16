@@ -166,7 +166,7 @@ class CCD:
                 return df
             else:
                 return self._preserve_missingness(df, by)
-        else:
+        elif self.ext == 'h5':
             # method for h5
             if self.spec[nhic_code]['dateandtime']:
                 df = self.item_2d[self.item_2d['NHICcode'] == nhic_code]
@@ -181,11 +181,14 @@ class CCD:
             # - [ ] @TODO: (2017-07-16) allow other byvars from 1d or infotb items
             #   for now leave site_id and episode_id in to permit easy future merge
             df['byvar'] = df[by]
-            df.rename(columns={'item2d': 'value'}, inplace=True)
+            df.rename(columns={'item2d': 'value', 'item1d': 'value'}, inplace=True)
             pd.options.mode.chained_assignment = 'warn'  # default='warn'
 
             df = self._convert_type(df, as_type)
             return df
+
+        else:
+            raise ValueError('!!! ccd object derived from file with unrecognised extension {}'.format(DataRawNew.ccd.ext))
 
     def json2hdf(self,
             ccd_key = ['site_id', 'episode_id'],
