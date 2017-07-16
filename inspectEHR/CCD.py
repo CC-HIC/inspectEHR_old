@@ -39,6 +39,7 @@ class CCD:
             self._load_from_json()
             self._add_random_sites()
             self._add_unique_ids()
+            self.infotb = self._extract_infotb()
         elif self.ext == '.h5':
             self.ext = 'h5'
             store = pd.HDFStore(self.filepath)
@@ -122,7 +123,9 @@ class CCD:
     def _convert_type(df, as_type):
         """Optionally convert data to specified type."""
         if as_type:
+            pd.options.mode.chained_assignment = None  # default='warn'
             df['value'] = df['value'].astype(as_type)
+            pd.options.mode.chained_assignment = 'warn'  # default='warn'
         return df
 
     def _preserve_missingness(self, df, by=None):
@@ -181,6 +184,7 @@ class CCD:
             df.rename(columns={'item2d': 'value'}, inplace=True)
             pd.options.mode.chained_assignment = 'warn'  # default='warn'
 
+            df = self._convert_type(df, as_type)
             return df
 
     def json2hdf(self,
