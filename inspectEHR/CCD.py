@@ -1,28 +1,54 @@
 import warnings
 import numpy as np
 import pandas as pd
+import os
+
 
 
 class CCD:
-    def __init__(self, json_filepath, random_sites=False, random_sites_list=list('ABCDE'),
+    def __init__(self, filepath, spec, random_sites=False, random_sites_list=list('ABCDE'),
                  id_columns=('site_id', 'episode_id')):
         """ Reads and processes CCD object, provides methods to extract NHIC data items.
+        With JSON will load and
+            - provide methods to extract single items
+            - provide methods to extract all to h5
+        With h5 will load and make available as infotb, item_1d, and item_2d dataframes
 
         Args:
-            json_filepath (str): Path to CCD JSON object
-            random_sites (bool): If True,  adds fake site IDs for testing purposes.
-            random_sites_list (list): Fake site IDs used if add_random_sites is True
+            filepath (str): Path to CCD JSON object or h5 file
+            spec: data specification as dictionary
+            With JSON:
+                random_sites (bool): If True,  adds fake site IDs for testing purposes.
+                random_sites_list (list): Fake site IDs used if add_random_sites is True
             id_columns (tuple): Columns to concatenate to form unique IDs. Defaults to
                 concatenating site and episode IDs.
         """
-        self.json_filepath = json_filepath
-        self.random_sites = random_sites
-        self.random_sites_list = random_sites_list
-        self.id_columns = id_columns
-        self.ccd = None
-        self._load_from_json()
-        self._add_random_sites()
-        self._add_unique_ids()
+        if not os.path.exists(filepath):
+            raise ValueError("Path to data not valid")
+
+        _, self.ext = os.path.splitext(filepath)
+        self.spec = spec
+        self.filepath = filepath
+
+        if self.ext == '.JSON':
+            self.ext = 'json'
+            self.random_sites = random_sites
+            self.random_sites_list = random_sites_list
+            self.id_columns = id_columns
+            self.ccd = None
+            self._load_from_json()
+            self._add_random_sites()
+            self._add_unique_ids()
+        elif self.ext == '.h5':
+            self.ext = 'h5'
+            store = pd.HDFStore(self.filepath)
+            self.infotb = store.get('infotb')
+            self.item_1d = store.get('item_1d')
+            self.item_2d = store.get('item_2d')
+            store.close()
+        else:
+            raise ValueError('Expects a JSON or h5 file')
+
 
 
     def __str__(self):
@@ -34,7 +60,7 @@ class CCD:
 
     def _load_from_json(self):
         """ Reads in CCD object into pandas DataFrame, checks that format is as expected."""
-        with open(self.json_filepath, 'r') as f:
+        with open(self.filepath, 'r') as f:
             self.ccd = pd.read_json(f)
         self._check_ccd_quality()
 
@@ -116,7 +142,7 @@ class CCD:
 
 
     def extract_one(self, nhic_code, by="site_id", as_type=None, drop_miss=True):
-        """ Extract a single NHIC data item directly from ccd object
+        """ Extract a single NHIC data item from JSON or HDF
 
         Args:
             nhic_code (str): Reference for item to extract, e.g. 'NIHR_HIC_ICU_0108'
@@ -128,14 +154,34 @@ class CCD:
                 for the data (value) and time (time)
         """
         # TODO: Standardise column order
-        df = self._build_df(nhic_code, by)
-        df = self._rename_data_columns(df)
-        df = self._convert_to_timedelta(df)
-        df = self._convert_type(df, as_type)
-        if drop_miss:
-            return df
+        if self.ext == 'json':
+            df = self._build_df(nhic_code, by)
+            df = self._rename_data_columns(df)
+            df = self._convert_to_timedelta(df)
+            df = self._convert_type(df, as_type)
+            if drop_miss:
+                return df
+            else:
+                return self._preserve_missingness(df, by)
         else:
-            return self._preserve_missingness(df, by)
+            # method for h5
+            if self.spec[nhic_code]['dateandtime']:
+                df = self.item_2d[self.item_2d['NHICcode'] == nhic_code]
+            else:
+                df = self.item_1d[self.item_1d['NHICcode'] == nhic_code]
+
+            # Switch off annoying warning message: see https://stackoverflow.com/a/20627316/992999
+            pd.options.mode.chained_assignment = None  # default='warn'
+            df['id'] = df['site_id'].astype(str) + df['episode_id'].astype(str)
+            df.set_index('id', inplace=True)
+            df.drop(['NHICcode'], axis=1, inplace=True)
+            # - [ ] @TODO: (2017-07-16) allow other byvars from 1d or infotb items
+            #   for now leave site_id and episode_id in to permit easy future merge
+            df['byvar'] = df[by]
+            df.rename(columns={'item2d': 'value'}, inplace=True)
+            pd.options.mode.chained_assignment = 'warn'  # default='warn'
+
+            return df
 
     def json2hdf(self,
             ccd_key = ['site_id', 'episode_id'],
@@ -200,7 +246,7 @@ class CCD:
 
         cols_2keep = [i for i  in self.ccd.columns if i not in cols_2drop]; cols_2keep
         rows_out = []
-        
+
         for row in self.ccd.itertuples():
             row_in = row._asdict()
             row_out = {k:v for k,v in row_in.items() if k != 'data'}

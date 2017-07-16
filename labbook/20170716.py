@@ -6,69 +6,53 @@
 %pylab
 %who
 %load_ext autoreload
-%autoreload
 
 import pandas as pd
 
 # Load 1d and 2d data
 import os
 from inspectEHR.utils import load_spec
-from inspectEHR.CCD import CCD
 from inspectEHR.data_classes import DataRaw, ContMixin, CatMixin
 
 # - [x] @TODO: (2017-07-15)  make a unique key from ccd (just integer would do)
 #   use this to index the item_tb table
 # - [ ] @TODO: (2017-07-16) make infotb table with spell and pid information
+spec = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
 
-refs = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
+%autoreload
+from inspectEHR.CCD import CCD
+filepath = 'data-raw/anon_public_da1000.JSON'
+# filepath = 'data/anon_public_da1000.h5'
+ccd = CCD(filepath, spec)
+ccd.item_2d.info()
 ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'), random_sites=True)
+n0108 = ccd.extract_one('NIHR_HIC_ICU_0108', as_type=np.int)
+n0108.info()
+n0108.head()
 
-help(CCD.extract_all)
-ccd.ccd.head()
-ccd.ccd.iloc[1]['data']['spell']
-ccd.ccd.iloc[1]['data']['pid']
+# Write extract function for hdf data store items
+field = 'NIHR_HIC_ICU_0108'
+field = 'NIHR_HIC_ICU_0093'
+# given NHICcode  go to spec to get 1d or 2d
+%who
+item_2d.head()
+if spec[field]['dateandtime']:
+    df = item_2d[item_2d['NHICcode'] == field]
+else:
+    df = item_1d[item_1d['NHICcode'] == field]
 
-infotb = ccd.ccd['']
-cols_2drop = ['data']
-cols_2keep = [i for i  in ccd.ccd.columns if i not in cols_2drop]; cols_2keep
-rows_out = []
-for row in ccd.ccd.itertuples():
-    row_in = row._asdict()
-    row_out = {k:v for k,v in row_in.items() if k != 'data'}
-    row_out['spell'] = row_in['data']['spell']
-    row_out['pid'] = row_in['data']['pid']
-    rows_out.append(row_out)
-infotb = pd.DataFrame(rows_out)
-infotb.head()
-cols_timedelta = ['t_admission', 't_discharge', 'parse_time']
-for col in cols_timedelta:
-    infotb[col] = pd.to_timedelta(infotb[col], unit='s')
-# infotb['t_admission'] = pd.to_timedelta(infotb['t_admission'], unit='s')
-# infotb['t_discharge'] = pd.to_timedelta(infotb['t_discharge']/3600, unit='h')
-infotb.head()
+# Switch off annoying warning message: see https://stackoverflow.com/a/20627316/992999
+pd.options.mode.chained_assignment = None  # default='warn'
+df['id'] = df['site_id'].astype(str) + df['episode_id'].astype(str)
+df.set_index('id', inplace=True)
+df.drop(['NHICcode'], axis=1, inplace=True)
+# - [ ] @TODO: (2017-07-16) allow other byvars from 1d or infotb items
+#   for now leave site_id and episode_id in to permit easy future merge
+df['byvar'] = df['site_id']
+df.rename(columns={'item2d': 'value'}, inplace=True)
+pd.options.mode.chained_assignment = 'warn'  # default='warn'
 
+df.head()
 
-
-[lambda col: info_tb[col] = pd.to_timedelta(infotb[col], unit='h') for col in cols_timedelta]
-
-
-ccd.ccd.iloc[1]['data']['spell']
-ccd.ccd.iloc[1]['data']['pid']
-
-
-
-
-}df2d = CCD.extract_all(ccd, 2, save2feather=False)
-df1d = CCD.extract_all(ccd, 1, save2feather=False)
-
-# os.remove('data/anon_public_da1000.h5')
-store = pd.HDFStore('data/anon_public_da1000.h5', mode='w')
-print(store)
-df1d.name
-store.put(str(df1d), df1d)
-# store.put('df2d',  df2d)
-print(store)
-
-dft = store.get('df1d')
-dft.info()
-store.close()
+# extract from 1d or 2d
+# rename columns
