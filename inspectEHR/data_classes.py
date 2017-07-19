@@ -15,15 +15,19 @@ class AutoMixinMeta(type):
 
         NHICcode = args[0]
 
-        if DataRaw.spec is None:
+        # get field dictionary
+        try:
+            _spec = getattr(DataRaw, 'spec')
+            # fspec = DataRaw.spec[NHICcode]
+        except AttributeError as e:
             try:
-                DataRaw.spec = kwargs['spec']
+                _spec = kwargs['spec']
             except KeyError as e:
                 raise KeyError('!!! Data dictionary (fspec) not provided as keyword argument')
 
-
+        # get field spec
         try:
-            fspec = DataRaw.spec[NHICcode]
+            fspec = _spec[NHICcode]
         except KeyError as e:
             raise KeyError('!!! {} not found in {}.format(NHICcode, spec)')
 
@@ -58,26 +62,28 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         spec: data dictionary
     """
 
-    ccd = None
-    spec = None
-    foo = 0
+    # - [ ] @NOTE: (2017-07-20) these values will persist for this instance
+    _first_run = True
+    _foo = 0
 
     def __init__(self, NHICcode, ccd=None, spec=None):
         """Initiate and create a data frame for the specific items"""
 
-        # Class not instance variables
-        if DataRaw.ccd is None:
-            try:
+        # if initial call
+        if DataRaw._first_run:
+            if ccd is None or spec is None:
+                raise ValueError("First call requires ccd and spec args")
+            else:
                 print('*** First initialisation of DataRaw class')
-                print('*** Loading ccd and spec')
-                DataRaw.ccd = ccd
-                DataRaw.spec = spec
-            except TypeError as e:
-                print('!!! You must provide a ccd data object and a spec')
-                return e
+                setattr(DataRaw,  'ccd', ccd )
+                setattr(DataRaw,  'infotb', ccd.infotb )
+                setattr(DataRaw,  'spec', spec )
+                DataRaw._first_run = False
+                print('*** Class variables ccd and spec initiated')
 
         self.NHICcode = NHICcode
         self.fspec = DataRaw.spec[NHICcode]
+
         # - [ ] @TODO: (2017-07-16) work out how to add integer types
         if self.fspec['Datatype'] in  ['numeric']:
             fdtype = np.float
@@ -88,6 +94,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         else:
             raise ValueError('!!! field specification datatype not recognised')
 
+        # Grab the variable from ccd
         self.dt = DataRaw.ccd.extract_one(NHICcode, as_type=fdtype)
 
         # Define instance characteristics
@@ -105,7 +112,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         # Count missing values (NB should always be zero for 2d since constructed from list)
         self.value_nmiss = self.dt['value'].isnull().sum()
 
-        DataRaw.foo += 1
+        DataRaw._foo += 1
 
 
     # Missingness does not depend on variable type so defined in base class
