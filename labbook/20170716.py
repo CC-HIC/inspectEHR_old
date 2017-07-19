@@ -21,11 +21,13 @@ spec = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
 
 %autoreload
 from inspectEHR.CCD import CCD
-filepath = 'data-raw/anon_public_da1000.JSON'
-# filepath = 'data/anon_public_da1000.h5'
-ccd = CCD(filepath, spec)
-ccd.item_2d.info()
-ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'), random_sites=True)
+pathin = 'data-raw/anon_public_da1000.JSON'
+ccd = CCD(pathin, spec, random_sites=True)
+pathout = 'data/anon_public_da1000.h5'
+ccd.json2hdf(path=pathout)
+ccd.infotb.head()
+# ccd = CCD(os.path.join('data-raw', 'anon_public_da1000.JSON'), random_sites=True)
+
 n0108 = ccd.extract_one('NIHR_HIC_ICU_0108', as_type=np.int)
 n0108.info()
 n0108.head()

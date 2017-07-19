@@ -38,8 +38,9 @@ class CCD:
             self.ccd = None
             self._load_from_json()
             self._add_random_sites()
-            self._add_unique_ids()
             self.infotb = self._extract_infotb()
+            self._add_unique_ids(self.ccd)
+            self._add_unique_ids(self.infotb)
         elif self.ext == '.h5':
             self.ext = 'h5'
             store = pd.HDFStore(self.filepath)
@@ -75,16 +76,16 @@ class CCD:
             sites_series = pd.Series(self.random_sites_list)
             self.ccd['site_id'] = sites_series.sample(len(self.ccd), replace=True).values
 
-    def _add_unique_ids(self):
+    def _add_unique_ids(self, dt):
         """ Define a unique ID for CCD data."""
         for i, col in enumerate(self.id_columns):
             if i == 0:
-                self.ccd['id'] = self.ccd[col].astype(str)
+                dt['id'] = dt[col].astype(str)
             else:
-                self.ccd['id'] = (self.ccd['id'].astype(str) +
-                                  self.ccd[col].astype(str))
-        assert not any(self.ccd.duplicated(subset='id'))  # Check unique
-        self.ccd.set_index('id', inplace=True)  # Set index
+                dt['id'] = (dt['id'].astype(str) +
+                                  dt[col].astype(str))
+        assert not any(dt.duplicated(subset='id'))  # Check unique
+        dt.set_index('id', inplace=True)  # Set index
 
     def _build_df(self, nhic_code, by):
         """ Build DataFrame for specific item from original JSON."""
