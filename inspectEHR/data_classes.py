@@ -95,12 +95,11 @@ class DataRaw(object, metaclass=AutoMixinMeta):
             raise ValueError('!!! field specification datatype not recognised')
 
         # Grab the variable from ccd
-        self.dt = DataRaw.ccd.extract_one(NHICcode, as_type=fdtype)
+        self.df = DataRaw.ccd.extract_one(NHICcode, as_type=fdtype)
 
         # Define instance characteristics
         self.label = self.fspec['dataItem']
-        self.nrow, self.ncol = self.dt.shape
-
+        self.nrow, self.ncol = self.df.shape
         # Define data as 1d or 2d
         if self.fspec['dateandtime']:
             self.d1d, self.d2d = False, True
@@ -108,23 +107,29 @@ class DataRaw(object, metaclass=AutoMixinMeta):
             self.d1d, self.d2d = True, False
 
         # Count unique levels of index id
-        self.id_nunique = self.dt.index.nunique()
+        self.id_nunique = self.df.index.nunique()
         # Count missing values (NB should always be zero for 2d since constructed from list)
-        self.value_nmiss = self.dt['value'].isnull().sum()
+        self.value_nmiss = self.df['value'].isnull().sum()
 
         DataRaw._foo += 1
 
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, rownum):
+        return self.df.iloc[rownum]
 
     # Missingness does not depend on variable type so defined in base class
     def data_complete(self):
         '''Report missingness by episode'''
         print('Reporting data completeness by available episodes')
         if self.d1d:
-            return self.dt['value'].notnull().value_counts()
+            return self.df['value'].notnull().value_counts()
         else:
             # Look for ids with no data
             # Classify if null, then make one row per index
-            d = self.dt[['value']].notnull().reset_index().drop_duplicates()
+            d = self.df[['value']].notnull().reset_index().drop_duplicates()
             # Return
             return d['value'].value_counts()
 
@@ -139,9 +144,9 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         # Define min/max times for these measures
         try:
             assert self.d2d
-            t_min = self.dt.groupby(level=0)[['time']].min().astype('timedelta64[s]')
+            t_min = self.df.groupby(level=0)[['time']].min().astype('timedelta64[s]')
             t_min.rename(columns={'time': 't_min'}, inplace=True)
-            t_max = self.dt.groupby(level=0)[['time']].max().astype('timedelta64[s]')
+            t_max = self.df.groupby(level=0)[['time']].max().astype('timedelta64[s]')
             t_max.rename(columns={'time': 't_max'}, inplace=True)
         except AssertionError as e:
             print('!!! data is not timeseries, not possible to report start/stop gaps')
@@ -168,7 +173,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         '''Report data frequency (measurement period in hours)'''
         try:
             assert self.d2d
-            dt = self.dt.copy()
+            dt = self.df.copy()
             dt['time_diff'] = dt.groupby(level=0)[['time']].diff().astype('timedelta64[h]')
             dt = dt.groupby(level=0)[['time_diff']].mean()
             return dt
@@ -185,7 +190,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
     def __str__(self):
         """Print helpful summary of object."""
         print(self.label, '\n')
-        print(self.dt.head(), '\n')
+        print(self.df.head(), '\n')
         print ("Pandas dataframe with", str(self.nrow), "rows (first 5 shown)")
         print("Unique episodes", self.id_nunique, '\n')
         return "\n"
@@ -198,8 +203,8 @@ class CatMixin:
     def inspect(self):
         ''' Tabulate data (if categorical)'''
         # Contingency table
-        assert ptypes.is_string_dtype(self.dt['value'])
-        return pd.value_counts(self.dt['value'])
+        assert ptypes.is_string_dtype(self.df['value'])
+        return pd.value_counts(self.df['value'])
 
     # tabulate by site
     def plot(self, by=False, mosaic=False, **kwargs):
@@ -209,14 +214,14 @@ class CatMixin:
         if by:
             if mosaic==True:
                 # use statsmodels mosaic
-                mosaic(self.dt, ['value','byvar'], **kwargs)
+                mosaic(self.df, ['value','byvar'], **kwargs)
             else:
                 sns.factorplot('value',
                     col='byvar',
-                    data=self.dt,
+                    data=self.df,
                     kind='count', **kwargs)
         else:
-            sns.countplot(self.dt['value'], **kwargs)
+            sns.countplot(self.df['value'], **kwargs)
         plt.show()
 
 
@@ -225,14 +230,14 @@ class ContMixin:
 
     def inspect(self):
         ''' Summarise data (if numerical)'''
-        return self.dt['value'].describe()
+        return self.df['value'].describe()
 
     def plot(self, by=False, **kwargs):
         if by:
-            for name, grp in self.dt.groupby('byvar'):
-                sns.kdeplot(self.dt['value'], **kwargs)
+            for name, grp in self.df.groupby('byvar'):
+                sns.kdeplot(self.df['value'], **kwargs)
         else:
-            sns.kdeplot(self.dt['value'], **kwargs)
+            sns.kdeplot(self.df['value'], **kwargs)
         plt.show()
 
 
