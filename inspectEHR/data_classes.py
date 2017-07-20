@@ -66,7 +66,8 @@ class DataRaw(object, metaclass=AutoMixinMeta):
     _first_run = True
     _foo = 0
 
-    def __init__(self, NHICcode, ccd=None, spec=None):
+    def __init__(self, NHICcode, ccd=None, spec=None,
+            ccd_key=['site_id', 'episode_id']):
         """Initiate and create a data frame for the specific items"""
 
         # if initial call
@@ -78,6 +79,10 @@ class DataRaw(object, metaclass=AutoMixinMeta):
                 setattr(DataRaw,  'ccd', ccd )
                 setattr(DataRaw,  'infotb', ccd.infotb )
                 setattr(DataRaw,  'spec', spec )
+                if not all([k in self.infotb.columns for k in ccd_key]):
+                    raise KeyError('!!! ccd_key should be a list of column names')
+                else:
+                    setattr(DataRaw,  'ccd_key', ccd_key)
                 DataRaw._first_run = False
                 print('*** Class variables ccd and spec initiated')
 
@@ -120,72 +125,8 @@ class DataRaw(object, metaclass=AutoMixinMeta):
     def __getitem__(self, rownum):
         return self.df.iloc[rownum]
 
-    # Missingness does not depend on variable type so defined in base class
-    def data_complete(self):
-        '''Report missingness by episode'''
-        print('Reporting data completeness by available episodes')
-        if self.d1d:
-            return self.df['value'].notnull().value_counts()
-        else:
-            # Look for ids with no data
-            # Classify if null, then make one row per index
-            d = self.df[['value']].notnull().reset_index().drop_duplicates()
-            # Return
-            return d['value'].value_counts()
-
-
-    def gap_startstop(self, ccd):
-        '''Report timedelta before first and last measurement for each episode
-        Args:
-            ccd: the ccd object from which the data was derived
-        Yields:
-            df: data frame, one row per episode with start stop time differences (hours)
-        '''
-        # Define min/max times for these measures
-        try:
-            assert self.d2d
-            t_min = self.df.groupby(level=0)[['time']].min().astype('timedelta64[s]')
-            t_min.rename(columns={'time': 't_min'}, inplace=True)
-            t_max = self.df.groupby(level=0)[['time']].max().astype('timedelta64[s]')
-            t_max.rename(columns={'time': 't_max'}, inplace=True)
-        except AssertionError as e:
-            print('!!! data is not timeseries, not possible to report start/stop gaps')
-            return e
-        # Now join admission/discharge on min/max times and calculate start/stop gaps
-        try:
-            dtt = ccd.ccd[['t_admission', 't_discharge']]
-        except KeyError as e:
-            print('!!! ccd does not contain t_admission and t_discharge fields')
-            return e
-
-        dtt = pd.merge(dtt, t_min,
-                    left_index=True, right_index=True, how='left')
-        dtt = pd.merge(dtt, t_max,
-                    left_index=True, right_index=True, how='left')
-        dtt['start'] = dtt['t_admission'] - dtt['t_min']
-        dtt['stop'] = dtt['t_discharge'] - dtt['t_max']
-        dtt = dtt[['start', 'stop']]
-
-        # Return in hours not seconds
-        return dtt / 3600
-
-    def gap_frequency(self):
-        '''Report data frequency (measurement period in hours)'''
-        try:
-            assert self.d2d
-            dt = self.df.copy()
-            dt['time_diff'] = dt.groupby(level=0)[['time']].diff().astype('timedelta64[h]')
-            dt = dt.groupby(level=0)[['time_diff']].mean()
-            return dt
-        except AssertionError as e:
-            print('!!! data is not timeseries, not possible to report observation frequency')
-            return e
-
-    def gap_plot(self, **kwargs):
-        '''Plot data frequency'''
-        dt = self.gap_frequency()
-        sns.kdeplot(dt['time_diff'], **kwargs)
-        plt.show()
+    def __repr__(self):
+        return str(self.df)
 
     def __str__(self):
         """Print helpful summary of object."""
@@ -195,6 +136,72 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         print("Unique episodes", self.id_nunique, '\n')
         return "\n"
 
+    def make_misstb(self):
+        """Define missingness per episode including time dependent measures"""
+
+        misstb = self._miss_by_episode(DataRaw.infotb, self.df, self.ccd_key)
+
+        if self.d2d:
+            gap_start = self._gap_start(DataRaw.infotb, self.df, self.ccd_key)
+            misstb = pd.merge(misstb, gap_start.reset_index(), on=self.ccd_key)
+            gap_stop = self._gap_stop(DataRaw.infotb, self.df, self.ccd_key)
+            misstb = pd.merge(misstb, gap_stop.reset_index(), on=self.ccd_key)
+            gap_period = self._gap_period(DataRaw.infotb, self.df, self.ccd_key)
+            misstb = pd.merge(misstb, gap_period.reset_index(), on=self.ccd_key)
+
+        self.misstb = misstb
+
+
+    @staticmethod
+    def _miss_by_episode(infotb, df, ke):
+        """Report if any data available for each episode in infotb
+        Args:
+            ke: key columns for infotb
+            infotb:
+            df: dataframe of 1d or 2d data
+        Yields:
+            dataframe with key cols and boolean if present in data
+        """
+        res = infotb[ke]
+        df_episodes = df[ke].drop_duplicates()
+        res = pd.merge(res, df_episodes, on=ke,  how='left', indicator=True)
+        # there's shouldn't be an index in the data that is not in infotb
+        assert len(res[res['_merge']=='right_only']) == 0
+        res.loc[res._merge == 'both', 'miss_by_episode'] = False
+        res.loc[res._merge == 'left_only', 'miss_by_episode'] = True
+        res.drop('_merge', axis=1, inplace=True)
+        return res
+
+    @staticmethod
+    def _gap_start(infotb, df, ke, tstart = 't_admission'):
+        """Report delay before first 2d observation"""
+        tmin = df.groupby(by=ke).time.min().reset_index()
+        cols = ke.copy()
+        cols.append(tstart)
+        res = infotb[cols]
+        res = pd.merge(res, tmin , on=ke,  how='left')
+        res['gap_start'] = res.time - res[tstart]
+        return res.set_index(ke).gap_start
+
+    @staticmethod
+    def _gap_stop(infotb, df, ke, tstop = 't_discharge'):
+        """Report delay after last 2d observation"""
+        tmax = df.groupby(by=ke).time.max().reset_index()
+        cols = ke.copy()
+        cols.append(tstop)
+        res = infotb[cols]
+        res = pd.merge(res, tmax , on=ke,  how='left')
+        res['gap_stop'] = res.time - res[tstop]
+        return res.set_index(ke).gap_stop
+
+    @staticmethod
+    def _gap_period(infotb, df, ke):
+        """Define periodicity of measurement in hours"""
+        res = df.copy()
+        res['gap_period'] = (res['time'] / np.timedelta64(1, 'h')).astype(int)
+        res.set_index(ke, inplace=True)
+        res = res.groupby(level=[0,1])[['gap_period']].diff()
+        return res.groupby(level=[0,1]).median()
 
 class CatMixin:
     ''' Categorical data methods'''

@@ -129,23 +129,8 @@ class CCD:
             pd.options.mode.chained_assignment = 'warn'  # default='warn'
         return df
 
-    def _preserve_missingness(self, df, by=None):
-        '''Introduce placeholder rows for missing data'''
-        if by is None:
-            return df.reindex(self.ccd.index)
-        else:
-            # select by list [[]] to return dataframe not series
-            left = self.ccd[[by]]
-            result = pd.merge(left, df,
-                left_index=True, right_index=True,
-                how='left')
-            # Drop old byvar (which will have missingness)
-            result.drop('byvar', axis=1, inplace=True)
-            result.rename(columns={by: 'byvar'}, inplace=True)
-            return result
 
-
-    def extract_one(self, nhic_code, by="site_id", as_type=None, drop_miss=True):
+    def extract_one(self, nhic_code, by="site_id", as_type=None):
         """ Extract a single NHIC data item from JSON or HDF
 
         Args:
@@ -163,10 +148,7 @@ class CCD:
             df = self._rename_data_columns(df)
             df = self._convert_to_timedelta(df)
             df = self._convert_type(df, as_type)
-            if drop_miss:
-                return df
-            else:
-                return self._preserve_missingness(df, by)
+            return df
         elif self.ext == 'h5':
             # method for h5
             if self.spec[nhic_code]['dateandtime']:
