@@ -107,10 +107,10 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         self.label = self.fspec['dataItem']
         self.nrow, self.ncol = self.df.shape
         # Define data as 1d or 2d
-        if self.fspec['dateandtime']:
-            self.d1d, self.d2d = False, True
-        else:
+        if self.fspec['NHICdtCode'] is None:
             self.d1d, self.d2d = True, False
+        else:
+            self.d1d, self.d2d = False, True
 
         # Count unique levels of index id
         self.id_nunique = self.df.index.nunique()
@@ -142,13 +142,13 @@ class DataRaw(object, metaclass=AutoMixinMeta):
 
         misstb = self._miss_by_episode(DataRaw.infotb, self.df, self.ccd_key)
 
-        if self.d2d:
+        if self.d2d and len(self.df) > 0:
             gap_start = self._gap_start(DataRaw.infotb, self.df, self.ccd_key)
-            misstb = pd.merge(misstb, gap_start.reset_index(), on=self.ccd_key)
+            misstb = pd.merge(misstb, gap_start.reset_index(), on=self.ccd_key, how='left')
             gap_stop = self._gap_stop(DataRaw.infotb, self.df, self.ccd_key)
-            misstb = pd.merge(misstb, gap_stop.reset_index(), on=self.ccd_key)
+            misstb = pd.merge(misstb, gap_stop.reset_index(), on=self.ccd_key, how='left')
             gap_period = self._gap_period(self.df, self.ccd_key)
-            misstb = pd.merge(misstb, gap_period.reset_index(), on=self.ccd_key)
+            misstb = pd.merge(misstb, gap_period.reset_index(), on=self.ccd_key, how='left')
 
         self.misstb = misstb
 
