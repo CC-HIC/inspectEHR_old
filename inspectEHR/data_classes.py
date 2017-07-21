@@ -101,6 +101,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
 
         # Grab the variable from ccd
         self.df = DataRaw.ccd.extract_one(NHICcode, as_type=fdtype)
+        self.misstb = None # Don't define on initiation b/c slow
 
         # Define instance characteristics
         self.label = self.fspec['dataItem']
@@ -136,7 +137,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         print("Unique episodes", self.id_nunique, '\n')
         return "\n"
 
-    def make_misstb(self):
+    def make_misstb(self, verbose=False):
         """Define missingness per episode including time dependent measures"""
 
         misstb = self._miss_by_episode(DataRaw.infotb, self.df, self.ccd_key)
@@ -146,10 +147,15 @@ class DataRaw(object, metaclass=AutoMixinMeta):
             misstb = pd.merge(misstb, gap_start.reset_index(), on=self.ccd_key)
             gap_stop = self._gap_stop(DataRaw.infotb, self.df, self.ccd_key)
             misstb = pd.merge(misstb, gap_stop.reset_index(), on=self.ccd_key)
-            gap_period = self._gap_period(DataRaw.infotb, self.df, self.ccd_key)
+            gap_period = self._gap_period(self.df, self.ccd_key)
             misstb = pd.merge(misstb, gap_period.reset_index(), on=self.ccd_key)
 
         self.misstb = misstb
+
+        if verbose:
+            print('*** Missing data table saved as self.misstb\ne.g.\n')
+            print(misstb.loc[:5,'miss_by_episode':])
+
 
 
     @staticmethod
@@ -195,13 +201,15 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         return res.set_index(ke).gap_stop
 
     @staticmethod
-    def _gap_period(infotb, df, ke):
-        """Define periodicity of measurement in hours"""
+    def _gap_period(df, ke, method=np.median):
+        """Define (median) periodicity of measurement in hours"""
+        # - [ ] @NOTE: (2017-07-21) working with diff() v slow
+        # therefore manually shift and calculate
         res = df.copy()
-        res['gap_period'] = (res['time'] / np.timedelta64(1, 'h')).astype(int)
-        res.set_index(ke, inplace=True)
-        res = res.groupby(level=[0,1])[['gap_period']].diff()
-        return res.groupby(level=[0,1]).median()
+        res['time_L1'] = res.groupby(ke).time.shift()
+        res['gap_period'] = res['time'] - res['time_L1']
+        res = res.groupby(ke).gap_period.apply(method)
+        return res
 
 class CatMixin:
     ''' Categorical data methods'''
@@ -236,8 +244,16 @@ class ContMixin:
     ''' Continuous data methods '''
 
     def inspect(self):
-        ''' Summarise data (if numerical)'''
-        return self.df['value'].describe()
+        ''' Summarise data (if numerical)
+        includes mean gap data (but median might be more appropriate)'''
+
+        if self.misstb is None:
+            self.make_misstb(verbose=False)
+        res = pd.concat(
+            [self.df['value'].describe(),
+            self.misstb.loc[:,'miss_by_episode':].mean()
+        ])
+        return res
 
     def plot(self, by=False, **kwargs):
         if by:
