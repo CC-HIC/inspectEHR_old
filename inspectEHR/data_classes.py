@@ -4,6 +4,7 @@ import numpy as np
 import pandas.api.types as ptypes
 from statsmodels.graphics.mosaicplot import mosaic
 import matplotlib.pyplot as plt
+from collections import OrderedDict
 
 
 
@@ -92,8 +93,10 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         # - [ ] @TODO: (2017-07-16) work out how to add integer types
         if self.fspec['Datatype'] in  ['numeric']:
             fdtype = np.float
-        elif self.fspec['Datatype'] in ['text', 'list', 'list / logical', 'Logical']:
+        elif self.fspec['Datatype'] in ['text']:
             fdtype = np.str
+        elif self.fspec['Datatype'] in ['list', 'list / logical', 'Logical']:
+            fdtype = 'category' # pd.Categorical
         elif self.fspec['Datatype'] in ['Date', 'Time', 'Date/time']:
             fdtype = np.datetime64
         else:
@@ -217,9 +220,42 @@ class CatMixin:
     # tabulate values
     def inspect(self):
         ''' Tabulate data (if categorical)'''
-        # Contingency table
-        assert ptypes.is_string_dtype(self.df['value'])
-        return pd.value_counts(self.df['value'])
+        # Build missing data if not already done
+        if self.misstb is None:
+            self.make_misstb(verbose=False)
+        # Mini data frame with levels and missingness
+        rows = []
+        row_keys = ['NHICcode', 'level', 'count', 'n', 'pct', 'nunique', 'miss_by_episode', 'gap_start', 'gap_stop', 'gap_period']
+        row = OrderedDict.fromkeys(row_keys)
+        vals = self.df['value']
+
+        # Header row
+        # ==========
+        row['NHICcode'] = self.NHICcode
+        row['level'] = 'header'
+        row['nunique'] = vals.nunique()
+        row['count'] = len(vals)
+
+        row_miss = self.misstb.loc[:,'miss_by_episode':].mean()
+        # for some reason, can't write this as a list comprehension
+        for k,v in row_miss.iteritems():
+            row[k] = v
+
+        rows.append(pd.Series(row))
+
+        # now repeat for levels of variable
+        # =================================
+        for lvl in vals.cat.categories:
+            row = OrderedDict.fromkeys(row_keys)
+            # Header row
+            row['NHICcode'] = self.NHICcode
+            row['level'] = lvl
+            row['n'] = vals.loc[vals == lvl].count()
+            row['pct'] = row['n'] / len(vals)
+            rows.append(pd.Series(row))
+
+        return pd.DataFrame(rows)
+
 
     # tabulate by site
     def plot(self, by=False, mosaic=False, **kwargs):
@@ -249,11 +285,14 @@ class ContMixin:
 
         if self.misstb is None:
             self.make_misstb(verbose=False)
-        res = pd.concat(
-            [self.df['value'].describe(),
+        res = pd.concat([
+            pd.Series(self.NHICcode, index=['NHICcode']),
+            self.df['value'].describe(),
             self.misstb.loc[:,'miss_by_episode':].mean()
         ])
-        return res
+        # although single row, return as dataframe for consistency with cat version
+        # and transpose so wide not long
+        return pd.DataFrame(res).T
 
     def plot(self, by=False, **kwargs):
         if by:

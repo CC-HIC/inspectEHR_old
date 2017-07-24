@@ -27,51 +27,26 @@ ccd = CCD(filepath, spec, random_sites=True)
 
 # Create DataRaw instances
 %autoreload
+from inspectEHR.CCD import CCD
 from inspectEHR.data_classes import DataRaw, ContMixin, CatMixin
-d0122 = DataRaw('NIHR_HIC_ICU_0122', ccd=ccd, spec=spec)
 
+d0093 = DataRaw('NIHR_HIC_ICU_0093', ccd=ccd, spec=spec)
 
-len(d0122.df)
-d0122.d1d
-d0122.make_misstb(verbose=True)
-
-
-d0122.inspect()
+bar = d0093.inspect()
 d0108 = DataRaw('NIHR_HIC_ICU_0108', ccd=ccd, spec=spec)
-d0108.make_misstb()
-d0108.misstb.shape
-d0108.misstb.miss_by_episode.value_counts()
-d0122.misstb.miss_by_episode.value_counts()
+foo = d0108.inspect()
+foo.shape
 
-fields = ['NIHR_HIC_ICU_0108', 'NIHR_HIC_ICU_0122']
+
+pd.concat([foo,bar], ignore_index=True)
+
+fields = ['NIHR_HIC_ICU_0093', 'NIHR_HIC_ICU_0108', 'NIHR_HIC_ICU_0122']
 data_raw_items = {field:DataRaw(field, ccd=ccd, spec=spec) for field in fields}
-
-data_raw_items['NIHR_HIC_ICU_0108'].inspect()
-data_raw_items['NIHR_HIC_ICU_0122'].inspect()
-x = data_raw_items['NIHR_HIC_ICU_0122'].inspect()
 
 results = {k:v.inspect() for k,v in data_raw_items.items()}
 
-x = pd.DataFrame(results)
-x.T
+pd.concat(results)
+report_cont = pd.DataFrame(results).T
+report_cont
 
-
-# Let's try and select all 2d numeric items from spec
-spec_df = pd.DataFrame(spec).T
-spec_2dcont = {k:v for k,v in spec.items() if v['NHICdtCode'] is not None
-                                            and v['Datatype'] in ['numeric']}
-
-fields = [k for k in spec_2dcont.keys()]
-fields = fields[:20]
-data_raw_items = {field:DataRaw(field, ccd=ccd, spec=spec) for field in fields}
-results = {k:v.inspect() for k,v in data_raw_items.items()}
-results = pd.DataFrame(results).T
-results.head()
-results = pd.merge(results, spec_df, left_index=True, right_index=True )
-col_order = "dataItem count min 25% 50% 75% max mean std miss_by_episode gap_period gap_start gap_stop".split()
-def to_decimal_hours(d, f):
-    return pd.to_timedelta(d[f]).astype('timedelta64[s]')/3600
-results.gap_period = to_decimal_hours(results, 'gap_period')
-results.gap_start = to_decimal_hours(results, 'gap_start')
-results.gap_stop = to_decimal_hours(results, 'gap_stop')
-results[col_order].to_clipboard()
+pd.concat([report_cat, report_cont])
