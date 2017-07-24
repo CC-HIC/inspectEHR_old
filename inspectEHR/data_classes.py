@@ -306,3 +306,7 @@ class ContMixin:
 class DateTimeMixin:
     ''' Date/Time methods'''
     pass
+
+class TextMixin:
+    ''' Text methods'''
+    pass
