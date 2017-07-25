@@ -99,15 +99,19 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         self.nrow, self.ncol = self.df.shape
 
         # Convert to correct type and record data quality
-        self.categories = None # will be reset if datatype is categorical
         self.coerced_values = pd.Series([], dtype='str')
 
-        # Convert type
+        # Convert type (and store original)
+        self.df.rename(columns={'value': 'value_orig'})
         # type conversion throws silent error if no data
         if self.nrow > 0:
-            self._convert_type()
+            self.df.value = _convert_type(self.value, fdtype=self.fdtype)
 
-        self.misstb = None # Don't define on initiation b/c slow
+
+        if self.fdtype = 'category':
+            self.categories = self.df.value.cat.categories
+        else:
+            self.categories = None
 
         # Define instance characteristics
         self.label = self.fspec['dataItem']
@@ -159,29 +163,31 @@ class DataRaw(object, metaclass=AutoMixinMeta):
             raise ValueError('!!! field specification datatype not recognised')
         return fdtype
 
-    def _convert_type(self):
+    @staticmethod
+    def _convert_type(vals, fdtype):
         """Convert data to specified type."""
         # Turn off modification of slice warnings
         pd.options.mode.chained_assignment = None  # default='warn'
 
-        if self.fdtype == 'float':
-            self.coerced_values = self.not_numeric(self.df.value)
+        if fdtype == 'float':
             # must use NaN not None below
-            self.df.value = self.df.value.replace(' ', np.NaN)
-            self.df.value = pd.to_numeric(self.df.value, errors='coerce', downcast='integer')
-        elif self.fdtype == 'str':
+            vals = vals.replace(' ', np.NaN)
+            vals = pd.to_numeric(vals, errors='coerce', downcast='integer')
+        elif fdtype == 'str':
             # no change required as should be text by default
             pass
-        elif self.fdtype == 'category':
-            self.df.value = pd.Categorical(self.df.value)
-            self.categories = self.df.value.cat.categories
-        elif self.fdtype == 'datatime64':
+        elif fdtype == 'category':
+            vals = pd.Categorical(vals)
+        elif fdtype == 'datatime64':
             pass
         else:
             raise ValueError('!!! field specification datatype not recognised')
+
+        # Restore annoying warnings
         pd.options.mode.chained_assignment = 'warn'  # default='warn'
+
         # Python convention to return None if changing in place
-        return None
+        return vals
 
     @staticmethod
     def not_numeric(v):
