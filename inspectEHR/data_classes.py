@@ -68,7 +68,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
     _first_run = True
     _foo = 0
 
-    def __init__(self, NHICcode, ccd=None, spec=None,
+    def __init__(self, NHICcode, ccd=None, spec=None, byvar='site_id',
             ccd_key=['site_id', 'episode_id'], first_run = False):
         """Initiate and create a data frame for the specific items"""
 
@@ -89,13 +89,14 @@ class DataRaw(object, metaclass=AutoMixinMeta):
                 print('*** Class variables ccd and spec initiated')
 
         self.NHICcode = NHICcode
+        self.byvar = byvar
         self.fspec = DataRaw.spec[NHICcode]
         self.fdtype = self._datatype_to_pandas(self.fspec['Datatype'])
 
         # - [ ] @TODO: (2017-07-16) work out how to add integer types
 
         # Grab the variable from ccd
-        self.df = DataRaw.ccd.extract_one(NHICcode)
+        self.df = DataRaw.ccd.extract_one(NHICcode, by=self.byvar)
         self.nrow, self.ncol = self.df.shape
 
         # Convert to correct type and record data quality
@@ -105,10 +106,9 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         self.df.rename(columns={'value': 'value_orig'})
         # type conversion throws silent error if no data
         if self.nrow > 0:
-            self.df.value = _convert_type(self.value, fdtype=self.fdtype)
+            self.df.value = self._convert_type(self.df.value, fdtype=self.fdtype)
 
-
-        if self.fdtype = 'category':
+        if self.fdtype == 'category':
             self.categories = self.df.value.cat.categories
         else:
             self.categories = None
@@ -190,32 +190,41 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         return vals
 
     @staticmethod
-    def not_numeric(v):
+    def _not_numeric(v):
         """Returns an array of those the values in s that are coerced"""
         mask_orig = v.isnull()
         mask_coerce = pd.to_numeric(v, errors='coerce', downcast='integer').isnull()
         return v.loc[np.logical_and(mask_coerce, np.logical_not(mask_orig))]
 
 
-    def make_misstb(self, verbose=False):
+    def make_misstb(self, bylevel=None, verbose=False):
         """Define missingness per episode including time dependent measures"""
 
-        misstb = self._miss_by_episode(DataRaw.infotb, self.df, self.ccd_key)
+        # Permits a subsetted df to be passed
+        if bylevel is None:
+            _df = self.df
+            _infotb = DataRaw.infotb
+        else:
+            # filter df and infotb by byvar
+            _df = self.df.loc[self.df.byvar==bylevel]
+            _infotb = DataRaw.infotb[DataRaw.infotb[self.byvar]==bylevel]
 
-        if self.d2d and len(self.df) > 0:
-            gap_start = self._gap_start(DataRaw.infotb, self.df, self.ccd_key)
+        misstb = self._miss_by_episode(_infotb, _df, self.ccd_key)
+
+        if self.d2d and len(_df) > 0:
+            gap_start = self._gap_start(_infotb, _df, self.ccd_key)
             misstb = pd.merge(misstb, gap_start.reset_index(), on=self.ccd_key, how='left')
-            gap_stop = self._gap_stop(DataRaw.infotb, self.df, self.ccd_key)
+            gap_stop = self._gap_stop(_infotb, _df, self.ccd_key)
             misstb = pd.merge(misstb, gap_stop.reset_index(), on=self.ccd_key, how='left')
-            gap_period = self._gap_period(self.df, self.ccd_key)
+            gap_period = self._gap_period(_df, self.ccd_key)
             misstb = pd.merge(misstb, gap_period.reset_index(), on=self.ccd_key, how='left')
 
-        self.misstb = misstb
 
         if verbose:
             print('*** Missing data table saved as self.misstb\ne.g.\n')
             print(misstb.loc[:5,'miss_by_episode':])
 
+        return misstb
 
 
     @staticmethod
@@ -274,27 +283,40 @@ class DataRaw(object, metaclass=AutoMixinMeta):
 class CatMixin:
     ''' Categorical data methods'''
 
-    # tabulate values
+
     def inspect(self):
+        """Simple inspection"""
+        # tabulate values
+        return self.df.value.value_counts()
+
+    def inspect_row(self, bylevel=None):
         ''' Tabulate data (if categorical)'''
-        # Build missing data if not already done
-        if self.misstb is None:
-            self.make_misstb(verbose=False)
+
+        # Permits a subsetted df to be passed
+        if bylevel is None:
+            _df = self.df
+        else:
+            # filter df  by byvar
+            _df = self.df.loc[self.df.byvar==bylevel]
+
+        misstb = self.make_misstb(bylevel=bylevel, verbose=False)
+
         # Mini data frame with levels and missingness
         rows = []
-        row_keys = ['NHICcode', 'level', 'count', 'n', 'pct', 'nunique', 'miss_by_episode', 'gap_start', 'gap_stop', 'gap_period']
+        row_keys = ['NHICcode', self.byvar, 'level', 'count', 'n', 'pct', 'nunique', 'miss_by_episode', 'gap_start', 'gap_stop', 'gap_period']
         row = OrderedDict.fromkeys(row_keys)
-        vals = self.df['value']
+        vals = _df['value']
 
         # Header row
         # ==========
         row['NHICcode'] = self.NHICcode
+        row[self.byvar] = bylevel
         row['level'] = 'header'
         row['nunique'] = vals.nunique()
         row['count'] = len(vals)
-        row['coerced'] = len(self.coerced_values)
+        row['coerced'] = None # b/c categorical and no type conversion attempted
 
-        row_miss = self.misstb.loc[:,'miss_by_episode':].mean()
+        row_miss = misstb.loc[:,'miss_by_episode':].mean()
         # for some reason, can't write this as a list comprehension
         for k,v in row_miss.iteritems():
             row[k] = v
@@ -308,6 +330,7 @@ class CatMixin:
                 row = OrderedDict.fromkeys(row_keys)
                 # Header row
                 row['NHICcode'] = self.NHICcode
+                row[self.byvar] = bylevel
                 row['level'] = lvl
                 row['n'] = vals.loc[vals == lvl].count()
                 row['pct'] = row['n'] / len(vals)
@@ -342,17 +365,29 @@ class ContMixin:
     ''' Continuous data methods '''
 
     def inspect(self):
+        """Simple inspection"""
+        return self.df.describe()
+
+    def inspect_row(self, bylevel=None):
         ''' Summarise data (if numerical)
         includes mean gap data (but median might be more appropriate)'''
 
-        if self.misstb is None:
-            self.make_misstb(verbose=False)
+        # Permits a subsetted df to be passed
+        if bylevel is None:
+            _df = self.df
+        else:
+            # filter df  by byvar
+            _df = self.df.loc[self.df.byvar==bylevel]
+
+        misstb = self.make_misstb(bylevel=bylevel, verbose=False)
+        coerced_values = self._not_numeric(_df.value)
+
         res = pd.concat([
                 pd.Series(
-                        [self.NHICcode, len(self.coerced_values)],
-                        index=['NHICcode', 'coerced_values']),
-                self.df['value'].describe(),
-                self.misstb.loc[:,'miss_by_episode':].mean()
+                        [self.NHICcode, bylevel, len(coerced_values)],
+                        index=['NHICcode', self.byvar, 'coerced_values']),
+                _df['value'].describe(),
+                misstb.loc[:,'miss_by_episode':].mean()
         ])
         # although single row, return as dataframe for consistency with cat version
         # and transpose so wide not long
