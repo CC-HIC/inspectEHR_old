@@ -68,11 +68,11 @@ class DataRaw(object, metaclass=AutoMixinMeta):
     _foo = 0
 
     def __init__(self, NHICcode, ccd=None, spec=None,
-            ccd_key=['site_id', 'episode_id']):
+            ccd_key=['site_id', 'episode_id'], first_run = False):
         """Initiate and create a data frame for the specific items"""
 
-        # if initial call
-        if DataRaw._first_run:
+        # if initial call (either by default, or explicitly)
+        if DataRaw._first_run or first_run:
             if ccd is None or spec is None:
                 raise ValueError("First call requires ccd and spec args")
             else:
@@ -89,21 +89,18 @@ class DataRaw(object, metaclass=AutoMixinMeta):
 
         self.NHICcode = NHICcode
         self.fspec = DataRaw.spec[NHICcode]
+        self.fdtype = self._datatype_to_pandas(self.fspec['Datatype'])
 
         # - [ ] @TODO: (2017-07-16) work out how to add integer types
-        if self.fspec['Datatype'] in  ['numeric']:
-            fdtype = np.float
-        elif self.fspec['Datatype'] in ['text']:
-            fdtype = np.str
-        elif self.fspec['Datatype'] in ['list', 'list / logical', 'Logical']:
-            fdtype = 'category' # pd.Categorical
-        elif self.fspec['Datatype'] in ['Date', 'Time', 'Date/time']:
-            fdtype = np.datetime64
-        else:
-            raise ValueError('!!! field specification datatype not recognised')
 
         # Grab the variable from ccd
-        self.df = DataRaw.ccd.extract_one(NHICcode, as_type=fdtype)
+        self.df = DataRaw.ccd.extract_one(NHICcode)
+
+        # Convert to correct type and record data quality
+        self.categories = None # will be reset if datatype is categorical
+        self.coerced_values = pd.Series([], dtype='str')
+        self._convert_type()
+
         self.misstb = None # Don't define on initiation b/c slow
 
         # Define instance characteristics
@@ -139,6 +136,56 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         print ("Pandas dataframe with", str(self.nrow), "rows (first 5 shown)")
         print("Unique episodes", self.id_nunique, '\n')
         return "\n"
+
+    @staticmethod
+    def _datatype_to_pandas(s):
+        """Given a string, identify the correct pandas or np data type
+        Returns the appropriate string so use as
+        dtype='int' not np.int"""
+        if s in  ['numeric']:
+            fdtype = 'float' # no numeric type, therefore this is most general
+        elif s in ['text']:
+            fdtype = 'str'
+        elif s in ['list', 'list / logical', 'Logical']:
+            fdtype = 'category' # pd.Categorical
+        elif s in ['Date', 'Time', 'Date/time']:
+            fdtype = 'datetime64'
+        else:
+            raise ValueError('!!! field specification datatype not recognised')
+        return fdtype
+
+    def _convert_type(self):
+        """Convert data to specified type."""
+        # Turn off modification of slice warnings
+        pd.options.mode.chained_assignment = None  # default='warn'
+
+        if self.fdtype == 'float':
+            self.coerced_values = self.not_numeric(self.df.value)
+            # must use NaN not None below
+            self.df.value = self.df.value.replace(' ', np.NaN)
+            self.df.value = pd.to_numeric(self.df.value, errors='coerce', downcast='integer')
+        elif self.fdtype == 'str':
+            # no change required as should be text by default
+            pass
+        elif self.fdtype == 'category':
+            self.df.value = pd.Categorical(self.df.value)
+            self.categories = self.df.value.cat.categories
+
+        elif self.fdtype == 'datatime64':
+            pass
+        else:
+            raise ValueError('!!! field specification datatype not recognised')
+        pd.options.mode.chained_assignment = 'warn'  # default='warn'
+        # Python convention to return None if changing in place
+        return None
+
+    @staticmethod
+    def not_numeric(v):
+        """Returns an array of those the values in s that are coerced"""
+        mask_orig = v.isnull()
+        mask_coerce = pd.to_numeric(v, errors='coerce', downcast='integer').isnull()
+        return v.loc[np.logical_and(mask_coerce, np.logical_not(mask_orig))]
+
 
     def make_misstb(self, verbose=False):
         """Define missingness per episode including time dependent measures"""
@@ -235,6 +282,7 @@ class CatMixin:
         row['level'] = 'header'
         row['nunique'] = vals.nunique()
         row['count'] = len(vals)
+        row['coerced'] = len(self.coerced_values)
 
         row_miss = self.misstb.loc[:,'miss_by_episode':].mean()
         # for some reason, can't write this as a list comprehension
@@ -286,9 +334,11 @@ class ContMixin:
         if self.misstb is None:
             self.make_misstb(verbose=False)
         res = pd.concat([
-            pd.Series(self.NHICcode, index=['NHICcode']),
-            self.df['value'].describe(),
-            self.misstb.loc[:,'miss_by_episode':].mean()
+                pd.Series(
+                        [self.NHICcode, len(self.coerced_values)],
+                        index=['NHICcode', 'coerced_values']),
+                self.df['value'].describe(),
+                self.misstb.loc[:,'miss_by_episode':].mean()
         ])
         # although single row, return as dataframe for consistency with cat version
         # and transpose so wide not long

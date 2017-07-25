@@ -120,17 +120,7 @@ class CCD:
             df = df[['value', 'byvar']]
         return df
 
-    @staticmethod
-    def _convert_type(df, as_type):
-        """Optionally convert data to specified type."""
-        if as_type:
-            pd.options.mode.chained_assignment = None  # default='warn'
-            df['value'] = df['value'].astype(as_type)
-            pd.options.mode.chained_assignment = 'warn'  # default='warn'
-        return df
-
-
-    def extract_one(self, nhic_code, by="site_id", as_type=None):
+    def extract_one(self, nhic_code, by="site_id"):
         """ Extract a single NHIC data item from JSON or HDF
 
         Args:
@@ -147,7 +137,6 @@ class CCD:
             df = self._build_df(nhic_code, by)
             df = self._rename_data_columns(df)
             df = self._convert_to_timedelta(df)
-            df = self._convert_type(df, as_type)
             return df
         elif self.ext == 'h5':
             # method for h5
@@ -167,7 +156,6 @@ class CCD:
             df.rename(columns={'item2d': 'value', 'item1d': 'value'}, inplace=True)
             pd.options.mode.chained_assignment = 'warn'  # default='warn'
 
-            df = self._convert_type(df, as_type)
             return df
 
         else:
