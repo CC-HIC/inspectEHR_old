@@ -5,6 +5,7 @@ import pandas.api.types as ptypes
 from statsmodels.graphics.mosaicplot import mosaic
 import matplotlib.pyplot as plt
 from collections import OrderedDict
+import warnings
 
 
 
@@ -95,17 +96,21 @@ class DataRaw(object, metaclass=AutoMixinMeta):
 
         # Grab the variable from ccd
         self.df = DataRaw.ccd.extract_one(NHICcode)
+        self.nrow, self.ncol = self.df.shape
 
         # Convert to correct type and record data quality
         self.categories = None # will be reset if datatype is categorical
         self.coerced_values = pd.Series([], dtype='str')
-        self._convert_type()
+
+        # Convert type
+        # type conversion throws silent error if no data
+        if self.nrow > 0:
+            self._convert_type()
 
         self.misstb = None # Don't define on initiation b/c slow
 
         # Define instance characteristics
         self.label = self.fspec['dataItem']
-        self.nrow, self.ncol = self.df.shape
         # Define data as 1d or 2d
         if self.fspec['NHICdtCode'] is None:
             self.d1d, self.d2d = True, False
@@ -170,7 +175,6 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         elif self.fdtype == 'category':
             self.df.value = pd.Categorical(self.df.value)
             self.categories = self.df.value.cat.categories
-
         elif self.fdtype == 'datatime64':
             pass
         else:
@@ -293,14 +297,18 @@ class CatMixin:
 
         # now repeat for levels of variable
         # =================================
-        for lvl in vals.cat.categories:
-            row = OrderedDict.fromkeys(row_keys)
-            # Header row
-            row['NHICcode'] = self.NHICcode
-            row['level'] = lvl
-            row['n'] = vals.loc[vals == lvl].count()
-            row['pct'] = row['n'] / len(vals)
-            rows.append(pd.Series(row))
+        try:
+            for lvl in vals.cat.categories:
+                row = OrderedDict.fromkeys(row_keys)
+                # Header row
+                row['NHICcode'] = self.NHICcode
+                row['level'] = lvl
+                row['n'] = vals.loc[vals == lvl].count()
+                row['pct'] = row['n'] / len(vals)
+                rows.append(pd.Series(row))
+        except AttributeError as e:
+            # if vals is zero length then will not have categories
+            warnings.warn('\n!!! Unable to parse categories of {} holding {} values'.format(self.NHICcode, len(vals)))
 
         return pd.DataFrame(rows)
 
