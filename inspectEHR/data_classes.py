@@ -88,13 +88,23 @@ class DataRaw(object, metaclass=AutoMixinMeta):
                 DataRaw._first_run = False
                 print('*** Class variables ccd and spec initiated')
 
-        self.NHICcode = NHICcode
-        self.byvar = byvar
-        self.fspec = DataRaw.spec[NHICcode]
-        self.fdtype = self._datatype_to_pandas(self.fspec['Datatype'])
+        # Define instance characteristics
+        self.NHICcode   = NHICcode
+        self.byvar      = byvar
+        self.fspec      = DataRaw.spec[NHICcode]
+        self.fdtype     = self._datatype_to_pandas(self.fspec['Datatype'])
+        self.label      = self.fspec['dataItem']
+        self.categories = None
+        self.bylevels   = None
+        self.id_nunique = None
+        # Define data as 1d or 2d
+        if self.fspec['NHICdtCode'] is None:
+            self.d1d, self.d2d = True, False
+        else:
+            self.d1d, self.d2d = False, True
 
-        # - [ ] @TODO: (2017-07-16) work out how to add integer types
 
+        # Generate and prepare data
         # Grab the variable from ccd
         self.df = DataRaw.ccd.extract_one(NHICcode, by=self.byvar)
         self.nrow, self.ncol = self.df.shape
@@ -107,25 +117,13 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         # type conversion throws silent error if no data
         if self.nrow > 0:
             self.df.value = self._convert_type(self.df.value, fdtype=self.fdtype)
+            self.bylevels = self.df.byvar.unique()
+            # Count unique levels of index id
+            self.id_nunique = self.df.index.nunique()
+            if self.fdtype == 'category':
+                self.categories = self.df.value.cat.categories
 
-        if self.fdtype == 'category':
-            self.categories = self.df.value.cat.categories
-        else:
-            self.categories = None
-
-        # Define instance characteristics
-        self.label = self.fspec['dataItem']
-        # Define data as 1d or 2d
-        if self.fspec['NHICdtCode'] is None:
-            self.d1d, self.d2d = True, False
-        else:
-            self.d1d, self.d2d = False, True
-
-        # Count unique levels of index id
-        self.id_nunique = self.df.index.nunique()
-        # Count missing values (NB should always be zero for 2d since constructed from list)
-        self.value_nmiss = self.df['value'].isnull().sum()
-
+        # class variable demo
         DataRaw._foo += 1
 
 
@@ -283,14 +281,38 @@ class DataRaw(object, metaclass=AutoMixinMeta):
 class CatMixin:
     ''' Categorical data methods'''
 
+    def inspect(self, by=False):
+        """Inspection optionally using byvar"""
+        if by:
+            # dict comprehension and return as dataframe
+            res = {bylevel:self._inspect(bylevel=bylevel) for bylevel in self.bylevels}
+            return pd.DataFrame(res)
+        else:
+            return self._inspect(bylevel=None)
 
-    def inspect(self):
-        """Simple inspection"""
+    def _inspect(self, bylevel=None):
+        """Simple inspection by a single level or all"""
+        if bylevel is None:
+            _df = self.df
+        else:
+            # filter df  by byvar
+            _df = self.df.loc[self.df.byvar==bylevel]
+
         # tabulate values
-        return self.df.value.value_counts()
+        return _df.value.value_counts()
 
-    def inspect_row(self, bylevel=None):
-        ''' Tabulate data (if categorical)'''
+    def inspect_row(self, by=False):
+        """Public version that handles by argument"""
+        if by and len(self.df):
+            # dict comprehension and return as dataframe
+            res = [self._inspect_row(bylevel=bylevel) for bylevel in self.bylevels]
+            return pd.concat(res)
+        else:
+            return self._inspect_row(bylevel=None)
+
+
+    def _inspect_row(self, bylevel=None):
+        '''Tabulate data (if categorical) for reporting'''
 
         # Permits a subsetted df to be passed
         if bylevel is None:
@@ -364,11 +386,36 @@ class CatMixin:
 class ContMixin:
     ''' Continuous data methods '''
 
-    def inspect(self):
-        """Simple inspection"""
-        return self.df.describe()
+    def inspect(self, by=False):
+        """Inspection optionally using byvar"""
+        if by:
+            # dict comprehension and return as dataframe
+            res = {bylevel:self._inspect(bylevel=bylevel) for bylevel in self.bylevels}
+            return pd.DataFrame(res)
+        else:
+            return self._inspect(bylevel=None)
 
-    def inspect_row(self, bylevel=None):
+
+    def _inspect(self, bylevel=None):
+        """Simple inspection by a single level or all"""
+        if bylevel is None:
+            _df = self.df
+        else:
+            # filter df  by byvar
+            _df = self.df.loc[self.df.byvar==bylevel]
+
+        return _df.value.describe()
+
+    def inspect_row(self, by=False):
+        """Public version that handles by argument"""
+        if by and len(self.df):
+            # dict comprehension and return as dataframe
+            res = [self._inspect_row(bylevel=bylevel) for bylevel in self.bylevels]
+            return pd.concat(res)
+        else:
+            return self._inspect_row(bylevel=None)
+
+    def _inspect_row(self, bylevel=None):
         ''' Summarise data (if numerical)
         includes mean gap data (but median might be more appropriate)'''
 
