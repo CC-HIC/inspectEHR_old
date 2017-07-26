@@ -24,8 +24,8 @@ spec = load_spec(os.path.join('data-raw', 'N_DataItems.yml'))
 spec_df = pd.DataFrame(spec).T
 
 # Load data
-filepath = 'data/anon_public_da1000.h5'
-# filepath = 'data/anon_internal.h5'
+# filepath = 'data/anon_public_da1000.h5'
+filepath = 'data/anon_internal.h5'
 ccd = CCD(filepath, spec, random_sites=True)
 ccd.infotb.shape
 # ccd.infotb.head()
@@ -84,7 +84,7 @@ len(fields)
 
 # data_raw_items = {field:DataRaw(field, ccd=ccd, spec=spec) for field in fields[:50]}
 data_raw_items = {}
-for field in fields[:100]:
+for field in fields:
     print(field)
     data_raw_items[field] = DataRaw(field, ccd=ccd, spec=spec)
 
