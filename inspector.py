@@ -6,6 +6,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from statsmodels.graphics.mosaicplot import mosaic
 import pandas as pd
+# Turn off modification of slice warnings
+pd.options.mode.chained_assignment = None  # default='warn'
+# Restore annoying warnings
+# pd.options.mode.chained_assignment = 'warn'  # default='warn'
 
 from inspectEHR.utils import load_spec
 from inspectEHR.CCD import CCD
@@ -15,9 +19,15 @@ def to_decimal_hours(s):
     """Return series s as decimal hours"""
     return pd.to_timedelta(s).astype('timedelta64[s]')/3600
 
+def row_generator(NHICcode, ccd, spec, by=False, verbose=False):
+    """Mini function to use make row inspection more efficient"""
+    cc_item = DataRaw(NHICcode, ccd=ccd, spec=spec)
+    if verbose:
+        print(NHICcode, cc_item.nrow)
+        return cc_item.inspect_row(by=by)
 
 def main():
-    debug_field_limit = 10
+    debug_field_limit = None
     # data_path = 'data/anon_internal.h5'
     data_path = os.path.join('data', 'anon_public_da1000.h5')
     spec_path = os.path.join('data-raw', 'N_DataItems.yml')
@@ -31,19 +41,11 @@ def main():
     fields2check = {k:v for k,v in spec.items() if v['Datatype'] in non_text_fields}
     fields = [k for k in fields2check.keys()][:debug_field_limit]
 
-
-    data_raw_items = {}
-    for field in fields:
-        print(field)
-        data_raw_items[field] = DataRaw(field, ccd=ccd, spec=spec)
-
-    results = {}
-    for k,v in data_raw_items.items():
-        print(k, v.nrow)
-        results[k] = v.inspect_row(by=True)
+    # parentheses turn the following into a generator expression
+    rows = list((row_generator(f, ccd=ccd, spec=spec, by=False, verbose=True) for f in fields))
 
     # Convert list of dataframes to single data frame
-    results = pd.concat(results)
+    results = pd.concat(rows)
     # Merge in the rest of the data spec
     results = pd.merge(results, spec_df, on='NHICcode' )
 
@@ -56,8 +58,4 @@ def main():
     results[col_order].to_csv('data/results.csv')
 
 if __name__ == '__main__':
-    # Turn off modification of slice warnings
-    pd.options.mode.chained_assignment = None  # default='warn'
     main()
-    # Restore annoying warnings
-    pd.options.mode.chained_assignment = 'warn'  # default='warn'
