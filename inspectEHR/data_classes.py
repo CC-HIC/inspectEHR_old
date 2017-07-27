@@ -206,6 +206,9 @@ class DataRaw(object, metaclass=AutoMixinMeta):
             _df = self.df.loc[self.df.byvar==bylevel]
             _infotb = DataRaw.infotb[DataRaw.infotb[self.byvar]==bylevel]
 
+        # add keys, don't append (or append after deep copy)
+        sort_key = self.ccd_key + ['time']
+        _df.sort_values(, inplace=True)
         misstb = self._miss_by_episode(_infotb, _df, self.ccd_key)
 
         if self.d2d and len(_df) > 0:
