@@ -206,12 +206,12 @@ class DataRaw(object, metaclass=AutoMixinMeta):
             _df = self.df.loc[self.df.byvar==bylevel]
             _infotb = DataRaw.infotb[DataRaw.infotb[self.byvar]==bylevel]
 
-        # add keys, don't append (or append after deep copy)
-        sort_key = self.ccd_key + ['time']
-        _df.sort_values(, inplace=True)
         misstb = self._miss_by_episode(_infotb, _df, self.ccd_key)
 
         if self.d2d and len(_df) > 0:
+            # add keys, don't append (or append after deep copy)
+            sort_key = self.ccd_key + ['time']
+            _df.sort_values(, inplace=True)
             gap_start = self._gap_start(_infotb, _df, self.ccd_key)
             misstb = pd.merge(misstb, gap_start.reset_index(), on=self.ccd_key, how='left')
             gap_stop = self._gap_stop(_infotb, _df, self.ccd_key)
