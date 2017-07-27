@@ -37,8 +37,10 @@ class AutoMixinMeta(type):
         try:
             if fspec['Datatype'] == 'numeric':
                 mixin = ContMixin
-            elif fspec['Datatype'] in ['text', 'list', 'list / logical', 'Logical']:
+            elif fspec['Datatype'] in ['list', 'list / logical', 'Logical']:
                 mixin = CatMixin
+            elif fspec['Datatype'] in ['text']:
+                mixin = TextMixin
             elif fspec['Datatype'] in ['Date', 'Time', 'Date/time']:
                 mixin = DateTimeMixin
             else:
@@ -455,4 +457,24 @@ class DateTimeMixin:
 
 class TextMixin:
     ''' Text methods'''
+
+    def inspect(self, by=False):
+        """Inspection optionally using byvar"""
+        if by:
+            # dict comprehension and return as dataframe
+            res = {bylevel:self._inspect(bylevel=bylevel) for bylevel in self.bylevels}
+            return pd.DataFrame(res)
+        else:
+            return self._inspect(bylevel=None)
+
+    def _inspect(self, bylevel=None):
+        """Simple inspection by a single level or all"""
+        if bylevel is None:
+            _df = self.df
+        else:
+            # filter df  by byvar
+            _df = self.df.loc[self.df.byvar==bylevel]
+
+        # tabulate most common values reported in that text field
+        return _df.value.value_counts().head()
     pass
