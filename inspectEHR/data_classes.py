@@ -1,7 +1,6 @@
 import pandas as pd
 import seaborn as sns
 import numpy as np
-import pandas.api.types as ptypes
 from statsmodels.graphics.mosaicplot import mosaic
 import matplotlib.pyplot as plt
 from collections import OrderedDict
@@ -170,7 +169,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         if fdtype == 'float':
             # must use NaN not None below
             vals = vals.replace(' ', np.NaN)
-            vals = pd.to_numeric(vals, errors='coerce', downcast='integer')
+            vals = pd.to_numeric(vals, errors='coerce')
         elif fdtype == 'str':
             # no change required as should be text by default
             pass
@@ -191,7 +190,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
     def _not_numeric(v):
         """Returns an array of those the values in s that are coerced"""
         mask_orig = v.isnull()
-        mask_coerce = pd.to_numeric(v, errors='coerce', downcast='integer').isnull()
+        mask_coerce = pd.to_numeric(v, errors='coerce').isnull()
         return v.loc[np.logical_and(mask_coerce, np.logical_not(mask_orig))]
 
 
@@ -253,7 +252,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         cols.append(tstart)
         res = infotb[cols]
         res = pd.merge(res, tmin , on=ke,  how='left')
-        res['gap_start'] = res.time - res[tstart]
+        res['gap_start'] = res[time] - res[tstart]
         return res.set_index(ke).gap_start
 
     @staticmethod

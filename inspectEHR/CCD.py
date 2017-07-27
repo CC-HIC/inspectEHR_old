@@ -6,8 +6,13 @@ import os
 
 
 class CCD:
-    def __init__(self, filepath, spec, random_sites=False, random_sites_list=list('ABCDE'),
-                 id_columns=('site_id', 'episode_id')):
+    def __init__(self,
+                    filepath,
+                    spec,
+                    idhs = True,
+                    random_sites=False,
+                    random_sites_list=list('ABCDE'),
+                     id_columns=('site_id', 'episode_id')):
         """ Reads and processes CCD object, provides methods to extract NHIC data items.
         With JSON will load and
             - provide methods to extract single items
@@ -17,6 +22,7 @@ class CCD:
         Args:
             filepath (str): Path to CCD JSON object or h5 file
             spec: data specification as dictionary
+            idhs: indicate if being run in safe haven as data format differs
             With JSON:
                 random_sites (bool): If True,  adds fake site IDs for testing purposes.
                 random_sites_list (list): Fake site IDs used if add_random_sites is True
@@ -26,11 +32,12 @@ class CCD:
         if not os.path.exists(filepath):
             raise ValueError("Path to data not valid")
 
-        _, self.ext = os.path.splitext(filepath)
+        _, self.ext = os.path.splitext(filepath).lower()
         self.spec = spec
         self.filepath = filepath
+        self.idhs = idhs
 
-        if self.ext == '.JSON':
+        if self.ext == '.json':
             self.ext = 'json'
             self.random_sites = random_sites
             self.random_sites_list = random_sites_list
@@ -111,10 +118,13 @@ class CCD:
         return df.rename(columns={'item2d': 'value', 'item1d': 'value'})
 
     @staticmethod
-    def _convert_to_timedelta(df):
+    def _convert_to_timedelta(df, delta=False):
         """Convert time in DataFrame to timedelta (if 2d)."""
         if 'time' in df.columns:
-            df['time'] = pd.to_timedelta(df['time'], unit='h')
+            if delta:
+                df['time'] = pd.to_timedelta(df['time'], unit='h')
+            else:
+                df['time'] = pd.to_datetime(df['time'])
             df = df[['value', 'byvar', 'time']]
         else:
             df = df[['value', 'byvar']]
@@ -136,7 +146,7 @@ class CCD:
         if self.ext == 'json':
             df = self._build_df(nhic_code, by)
             df = self._rename_data_columns(df)
-            df = self._convert_to_timedelta(df)
+            df = self._convert_to_timedelta(df, delta=False)
             return df
         elif self.ext == 'h5':
             # method for h5
@@ -234,13 +244,30 @@ class CCD:
             except ValueError as e:
                 row_out['spell'] = None
                 row_out['pid'] = None
+            except KeyError as e:
+                # original IDHS data does not have these values
+                # only found after anonymising
+                row_out['spell'] = None
+                row_out['pid'] = None
             rows_out.append(row_out)
 
         infotb = pd.DataFrame(rows_out)
+
         for col in cols_timedelta:
-            infotb[col] = pd.to_timedelta(infotb[col], unit='s')
+            if self.idhs:
+                # datetimes not timedeltas in IDHS
+                infotb[col] = pd.to_datetime(infotb[col])
+            else:
+                infotb[col] = pd.to_timedelta(infotb[col], unit='s')
 
         return infotb
+
+    @staticmethod
+    def progress_marker(on=False, counter=i, steps=10):
+        """Print a dot for every n steps of i"""
+        if on & counter%steps == 0:
+            print(".", end='')
+        return counter += 1
 
     def _extract_1d(self, ccd_key, progress_marker):
         """Extract 1d data from nested dictionary in dataframe after JSON import"""
@@ -248,14 +275,12 @@ class CCD:
         i = 0
 
         for row in self.ccd.itertuples():
-            if progress_marker:
-                if i%10 == 0:
-                    print(".", end='')
-                i += 1
+            i = self.progress_marker(True)
+
             df_from_data = []
             row_key = {k:getattr(row, k) for k in ccd_key}
 
-            for i, (nhic, d) in enumerate(row.data.items()):
+            for j, (nhic, d) in enumerate(row.data.items()):
                 # Assumes 2d data stored as dictionary
                 if type(d) == dict:
                     continue
@@ -277,10 +302,7 @@ class CCD:
 
         for row in self.ccd.itertuples():
 
-            if progress_marker:
-                if i%10 == 0:
-                    print(".", end='')
-                i += 1
+            i = self.progress_marker(True)
 
             row_key = {k:getattr(row, k) for k in ccd_key}
 
@@ -305,5 +327,5 @@ class CCD:
                 continue
 
         df = pd.concat(df_from_rows)
-        df['time'] = pd.to_timedelta(df['time'], unit='h')
+        df['time'] = pd.to_datetime(df['time'])
         return df
