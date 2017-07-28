@@ -7,10 +7,7 @@ from .utils import ProgressMarker
 
 # Primary class
 class CCD:
-    def __init__(self, filepath, spec,
-                    idhs = True,
-                    random_sites=False, random_sites_list=list('ABCDE'),
-                     id_columns=('site_id', 'episode_id')):
+    def __init__(self, filepath, spec, idhs=True, ccd_key=['site_id', 'episode_id']):
         """ Reads and processes CCD object, provides methods to extract NHIC data items.
         With JSON will load and
             - provide methods to extract single items
@@ -24,7 +21,7 @@ class CCD:
             With JSON:
                 random_sites (bool): If True,  adds fake site IDs for testing purposes.
                 random_sites_list (list): Fake site IDs used if add_random_sites is True
-            id_columns (tuple): Columns to concatenate to form unique IDs. Defaults to
+            ccd_key (list): Columns to concatenate to form unique IDs. Defaults to
                 concatenating site and episode IDs.
         """
         if not os.path.exists(filepath):
@@ -35,25 +32,16 @@ class CCD:
         self.spec = spec
         self.filepath = filepath
         self.idhs = idhs
+        self.ccd_key = ccd_key
 
         if self.ext == '.json':
             self.ext = 'json'
-            self.random_sites = random_sites
-            self.random_sites_list = random_sites_list
-            # - [ ] @FIXME: (2017-07-28) drop id_columns
-            self.id_columns = id_columns
-            self.ccd_key = id_columns
             self.ccd = self._load_from_json(self.filepath)
-            self._add_random_sites()
-            # self.infotb = self._extract_infotb()
-            # self._add_unique_ids(self.ccd)
-            # self._add_unique_ids(self.infotb)
+            self.infotb = self.ccd.drop('data', axis=1, inplace=False)
         elif self.ext == '.h5':
             self.ext = 'h5'
             store = pd.HDFStore(self.filepath)
             self.infotb = store.get('infotb')
-            self.item_1d = store.get('item1d')
-            self.item_2d = store.get('item2d')
             store.close()
         elif os.path.isdir(filepath):
             # Handle a directory of JSON files
@@ -88,23 +76,6 @@ class CCD:
         # TODO: Implement quality checking
         warnings.warn('Quality checking of source JSON not yet implemented.')
 
-    def _add_random_sites(self):
-        """ Optionally adds random site IDs for testing purposes."""
-        if self.random_sites:
-            sites_series = pd.Series(self.random_sites_list)
-            self.ccd['site_id'] = sites_series.sample(len(self.ccd), replace=True).values
-
-    def _add_unique_ids(self, dt):
-        """ Define a unique ID for CCD data."""
-        for i, col in enumerate(self.id_columns):
-            if i == 0:
-                dt['id'] = dt[col].astype(str)
-            else:
-                dt['id'] = (dt['id'].astype(str) +
-                                  dt[col].astype(str))
-        assert not any(dt.duplicated(subset='id'))  # Check unique
-        dt.set_index('id', inplace=True)  # Set index
-
     def _build_df(self, nhic_code, by):
         """ Build DataFrame for specific item from original JSON."""
         # TODO: Eliminate loop
@@ -112,12 +83,15 @@ class CCD:
         for row in self.ccd.itertuples():
             try:
                 d = row.data[nhic_code]
-                bv = getattr(row, by)
+                if by is not None: bv = getattr(row, by)
                 if type(d) == dict:  # If 2d then data stored as dict of lists
                     d = pd.DataFrame(d, index=np.repeat(row.Index, len(d['item2d'])))
-                    d['byvar'] = bv
+                    if by is not None: d['byvar'] = bv
                 else:  # else data stored as single item
-                    d = pd.DataFrame({'item1d': d, 'byvar': bv}, index=[row.Index])
+                    if by is not None:
+                        d = pd.DataFrame({'item1d': d, 'byvar': bv}, index=[row.Index])
+                    else:
+                        d = pd.DataFrame({'item1d': d}, index=[row.Index])
                 individual_dfs.append(d)
             except KeyError:
                 individual_dfs.append(None)
@@ -141,7 +115,7 @@ class CCD:
             df = df[['value', 'byvar']]
         return df
 
-    def extract_one(self, nhic_code, by="site_id"):
+    def extract_one(self, nhic_code, by='site_id'):
         """ Extract a single NHIC data item from JSON or HDF
 
         Args:
@@ -153,28 +127,44 @@ class CCD:
             DataFrame: IDs are stored as id and i (index the row) with columns
                 for the data (value) and time (time)
         """
-        # TODO: Standardise column order
+
         if self.ext == 'json':
+            warnings.warn('!!! Direct extraction from JSON to be deprecated')
             df = self._build_df(nhic_code, by)
             df = self._rename_data_columns(df)
             df = self._convert_to_timedelta(df, delta=False)
             return df
+
         elif self.ext == 'h5':
             # method for h5
+            select_str = 'NHICcode == {}'.format(nhic_code)
+            store = pd.HDFStore(self.filepath)
+
             if self.spec[nhic_code]['dateandtime']:
-                df = self.item_2d[self.item_2d['NHICcode'] == nhic_code]
+                df = store.select('item2d', select_str)
             else:
-                df = self.item_1d[self.item_1d['NHICcode'] == nhic_code]
+                df = store.select('item1d', select_str)
+
+            store.close()
+
+            # Merge byvar onto extracted data (byvar must come from infotb)
+            if by in self.ccd_key:
+                # - [ ] @NOTE: (2017-07-28) wasteful of space but keeps naming simple
+                df['byvar'] = df[by]
+            elif (by is not None):
+                cols = self.ccd_key + [by]
+                df = df.merge(self.infotb[cols], on=self.ccd_key, how='left')
+                df.rename(columns={by: 'byvar'}, inplace=True)
+            else:
+                raise ValueError('!!! {} not a variable in infotb'.format(by))
 
             # Switch off annoying warning message: see https://stackoverflow.com/a/20627316/992999
             pd.options.mode.chained_assignment = None  # default='warn'
+
             df['id'] = df['site_id'].astype(str) + df['episode_id'].astype(str)
             df.set_index('id', inplace=True)
             df.drop(['NHICcode'], axis=1, inplace=True)
-            # - [ ] @TODO: (2017-07-16) allow other byvars from 1d or infotb items
-            #   for now leave site_id and episode_id in to permit easy future merge
-            df['byvar'] = df[by]
-            df.rename(columns={'item2d': 'value', 'item1d': 'value'}, inplace=True)
+
             pd.options.mode.chained_assignment = 'warn'  # default='warn'
 
             return df
@@ -182,13 +172,10 @@ class CCD:
         else:
             raise ValueError('!!! ccd object derived from file with unrecognised extension {}'.format(DataRawNew.ccd.ext))
 
-    def json2hdf(self,
-        path, replace=True, progress_marker=True,
-        ccd_key = ['site_id', 'episode_id']):
+    def json2hdf(self, path, replace=True, progress_marker=True ):
         '''Extracts all data in ccd object to infotb, 1d, and 2d data frames in HDF5
         Args:
             ccd: ccd object (data frame with data column containing dictionary of dictionaries)
-            ccd_key: unique key to be stored from ccd object; defaults to site/episode
             path: path to save file
             progress_marker: displays a dot every 10 records
         '''
@@ -201,6 +188,7 @@ class CCD:
         expected_cols = ('Index', 'data', 'episode_id', 'nhs_number', 'parse_file',
             'parse_time', 'pas_number', 'site_id', 't_admission', 't_discharge')
         cols_to_index = ['site_id', 'NHICcode']
+        cols_timeish = ['parse_time', 't_admission', 't_discharge']
 
         if replace:
             try:
@@ -220,6 +208,11 @@ class CCD:
         # Start loop
         for i, row in enumerate(self.ccd.itertuples()):
 
+            # DEBUG
+            # if i > 10:
+            #     warnings.warn('\n!?! Debugging - iterations limited to 10')
+            #     break
+
             progress.status()
             assert row._fields  == expected_cols
 
@@ -236,7 +229,10 @@ class CCD:
                 index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
 
         infotb = pd.DataFrame(rows_infotb)
+        for col in cols_timeish:
+            infotb[col] = self.to_timeish(infotb[col], relative=not self.idhs, unit='s')
         store.append('infotb', infotb, data_columns=cols_to_index)
+
 
         store.create_table_index('item1d', columns=['site_id'], optlevel=9, kind='full')
         store.create_table_index('item2d', columns=['NHICcode'], optlevel=9, kind='full')
@@ -244,9 +240,10 @@ class CCD:
         store.close()
 
     @staticmethod
-    def to_timeish(s, delta=True, unit='h'):
-        """Convert to either datetime or deltatime"""
-        if delta:
+    def to_timeish(s, relative=True, unit='h'):
+        """Convert to either datetime or deltatime
+        relative = anon Extracts, idhs: relative = False """
+        if relative:
             return pd.to_timedelta(s, unit=unit)
         else:
             return pd.to_datetime(s)
@@ -280,9 +277,12 @@ class CCD:
         df2d = pd.concat(df2d)
         df2d.reset_index(level=0, inplace=True)
         df2d.rename(columns={'item2d':'value', 'level_0':'NHICcode'}, inplace=True)
-        df2d['time'] = self.to_timeish(df2d['time'])
+        df2d['time'] = self.to_timeish(df2d['time'], relative = not self.idhs, unit='h')
+        # Add meta and key cols
         if 'meta' not in df2d.columns:
             df2d['meta'] = None
+        for k in self.ccd_key:
+            df2d[k] = getattr(row, k)
 
         return df2d
 

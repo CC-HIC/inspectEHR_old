@@ -1,11 +1,13 @@
-"""Classes to manage the inspection of 1d and 2d data items"""
+from collections import OrderedDict
+import warnings
+
 import pandas as pd
 import seaborn as sns
 import numpy as np
+
 from statsmodels.graphics.mosaicplot import mosaic
 import matplotlib.pyplot as plt
-from collections import OrderedDict
-import warnings
+
 
 
 
