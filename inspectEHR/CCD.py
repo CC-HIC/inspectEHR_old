@@ -238,17 +238,6 @@ class CCD:
         for row in self.ccd.itertuples():
             row_in = row._asdict()
             row_out = {k:v for k,v in row_in.items() if k != 'data'}
-            try:
-                row_out['spell'] = row_in['data']['spell']
-                row_out['pid'] = row_in['data']['pid']
-            except ValueError as e:
-                row_out['spell'] = None
-                row_out['pid'] = None
-            except KeyError as e:
-                # original IDHS data does not have these values
-                # only found after anonymising
-                row_out['spell'] = None
-                row_out['pid'] = None
             rows_out.append(row_out)
 
         infotb = pd.DataFrame(rows_out)
