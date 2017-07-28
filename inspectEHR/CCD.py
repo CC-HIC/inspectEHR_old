@@ -6,12 +6,9 @@ import os
 
 
 class CCD:
-    def __init__(self,
-                    filepath,
-                    spec,
+    def __init__(self, filepath, spec,
                     idhs = True,
-                    random_sites=False,
-                    random_sites_list=list('ABCDE'),
+                    random_sites=False, random_sites_list=list('ABCDE'),
                      id_columns=('site_id', 'episode_id')):
         """ Reads and processes CCD object, provides methods to extract NHIC data items.
         With JSON will load and
@@ -32,7 +29,8 @@ class CCD:
         if not os.path.exists(filepath):
             raise ValueError("Path to data not valid")
 
-        _, self.ext = os.path.splitext(filepath).lower()
+        _, self.ext = os.path.splitext(filepath)
+        self.ext = self.ext.lower()
         self.spec = spec
         self.filepath = filepath
         self.idhs = idhs
@@ -56,6 +54,7 @@ class CCD:
             store.close()
         elif os.path.isdir(filepath):
             # Handle a directory of JSON files
+            # - [ ] @NOTE: (2017-07-28) manages 25k patients OK: i.e. loading
             files = os.listdir(filepath)
             if not all([os.path.splitext(f)[1].lower() == '.json'
                         for f in files]):
@@ -261,11 +260,12 @@ class CCD:
         return infotb
 
     @staticmethod
-    def progress_marker(on=False, counter=i, steps=10):
+    def progress_marker(counter, on=True, steps=10):
         """Print a dot for every n steps of i"""
         if on & counter%steps == 0:
             print(".", end='')
-        return counter += 1
+        counter += 1
+        return counter
 
     def _extract_1d(self, ccd_key, progress_marker):
         """Extract 1d data from nested dictionary in dataframe after JSON import"""
@@ -273,7 +273,7 @@ class CCD:
         i = 0
 
         for row in self.ccd.itertuples():
-            i = self.progress_marker(True)
+            i = self.progress_marker(i)
 
             df_from_data = []
             row_key = {k:getattr(row, k) for k in ccd_key}
@@ -300,7 +300,7 @@ class CCD:
 
         for row in self.ccd.itertuples():
 
-            i = self.progress_marker(True)
+            i = self.progress_marker(i)
 
             row_key = {k:getattr(row, k) for k in ccd_key}
 

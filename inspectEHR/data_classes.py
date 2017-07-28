@@ -211,7 +211,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         if self.d2d and len(_df) > 0:
             # add keys, don't append (or append after deep copy)
             sort_key = self.ccd_key + ['time']
-            _df.sort_values(, inplace=True)
+            _df.sort_values(sort_key, inplace=True)
             gap_start = self._gap_start(_infotb, _df, self.ccd_key)
             misstb = pd.merge(misstb, gap_start.reset_index(), on=self.ccd_key, how='left')
             gap_stop = self._gap_stop(_infotb, _df, self.ccd_key)
