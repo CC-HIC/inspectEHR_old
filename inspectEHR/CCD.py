@@ -42,8 +42,7 @@ class CCD:
             self.random_sites = random_sites
             self.random_sites_list = random_sites_list
             self.id_columns = id_columns
-            self.ccd = None
-            self._load_from_json()
+            self.ccd = self._load_from_json(self.filepath)
             self._add_random_sites()
             self.infotb = self._extract_infotb()
             self._add_unique_ids(self.ccd)
@@ -55,8 +54,16 @@ class CCD:
             self.item_1d = store.get('item_1d')
             self.item_2d = store.get('item_2d')
             store.close()
+        elif os.path.isdir(filepath):
+            # Handle a directory of JSON files
+            files = os.listdir(filepath)
+            if not all([os.path.splitext(f)[1].lower() == '.json'
+                        for f in files]):
+                raise ValueError('!!! Directory must only contain JSON files')
+            self.ccd = pd.concat(list((self._load_from_json(f) for f in files)))
+            self.infotb = self._extract_infotb()
         else:
-            raise ValueError('Expects a JSON or h5 file')
+            raise ValueError('!!! Expects a JSON or h5 file')
 
 
 
@@ -67,11 +74,13 @@ class CCD:
         txt.extend(['CCD object containing data from', self.json_filepath])
         return ' '.join(txt)
 
-    def _load_from_json(self):
+    @staticmethod
+    def _load_from_json(fp):
         """ Reads in CCD object into pandas DataFrame, checks that format is as expected."""
-        with open(self.filepath, 'r') as f:
-            self.ccd = pd.read_json(f)
-        self._check_ccd_quality()
+        with open(fp, 'r') as f:
+            ccd = pd.read_json(f)
+        # self._check_ccd_quality()
+        return ccd
 
     def _check_ccd_quality(self):
         # TODO: Implement quality checking
@@ -172,8 +181,8 @@ class CCD:
             raise ValueError('!!! ccd object derived from file with unrecognised extension {}'.format(DataRawNew.ccd.ext))
 
     def json2hdf(self,
-            ccd_key = ['site_id', 'episode_id'],
             path=None,
+            ccd_key = ['site_id', 'episode_id'],
             progress_marker=True):
         '''Extracts all data in ccd object to infotb, 1d, and 2d data frames in HDF5
         Args:
