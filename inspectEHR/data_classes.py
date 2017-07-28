@@ -1,3 +1,4 @@
+"""Classes to manage the inspection of 1d and 2d data items"""
 import pandas as pd
 import seaborn as sns
 import numpy as np

@@ -1,5 +1,6 @@
 # parse CCD.ccd one row at a time and write to hdf
-%who
+# %who
+
 def to_timeish(s, delta=True, unit='h'):
     """Convert to either datetime or deltatime"""
     if delta:
@@ -75,8 +76,8 @@ for i, row in enumerate(ccd.ccd.itertuples()):
         store = pd.HDFStore('data/ccd.h5')
         rows_infotb = [] # check here else will forget to reset
         progress = ProgressMarker()
-    if i > 100:
-        break
+    # if i > 100:
+    #     break
     progress.status()
     assert row._fields  == expected_cols
     # Construct infotb
@@ -117,4 +118,5 @@ foo.value.astype(np.float).describe()
 store.close()
 
 # Compress file
-store_compressed = pd.HDFStore('data/ccd.h5', complevel=9, complib='blosc:blosclz')
+pd.HDFStore('data/ccd.h5', complevel=9, complib='blosc:blosclz')
+store_compressed.close()
