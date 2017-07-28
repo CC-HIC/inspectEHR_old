@@ -21,7 +21,10 @@ for (i in 1:length(ccd)) {
 	# progress marker
 	print(paste(sprintf('%06.0f', i), ccdo$site_id,ccdo$episode_id))
 	# append ot list out
-	ccdl[[i]] <- ccdo
+	# need to append starting at zero after resets else JSON pads out ids
+	# j derives from k and is within file index between 1 and 1000
+	if (i %% 1000 == 0) j <- 1000 else j <- i %% 1000
+	ccdl[[j]] <- ccdo
 	if (i %% 1000 == 0) {
 		# Saves every 1000 episodes
 		ccdj <- jsonlite::toJSON(ccdl, dataframe='columns', auto_unbox=TRUE)
