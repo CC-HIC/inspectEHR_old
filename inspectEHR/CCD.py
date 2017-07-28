@@ -2,12 +2,15 @@ import warnings
 import numpy as np
 import pandas as pd
 import os
+from .utils import ProgressMarker
 
 
-
+# Primary class
 class CCD:
-    def __init__(self, filepath, spec, random_sites=False, random_sites_list=list('ABCDE'),
-                 id_columns=('site_id', 'episode_id')):
+    def __init__(self, filepath, spec,
+                    idhs = True,
+                    random_sites=False, random_sites_list=list('ABCDE'),
+                     id_columns=('site_id', 'episode_id')):
         """ Reads and processes CCD object, provides methods to extract NHIC data items.
         With JSON will load and
             - provide methods to extract single items
@@ -17,6 +20,7 @@ class CCD:
         Args:
             filepath (str): Path to CCD JSON object or h5 file
             spec: data specification as dictionary
+            idhs: indicate if being run in safe haven as data format differs
             With JSON:
                 random_sites (bool): If True,  adds fake site IDs for testing purposes.
                 random_sites_list (list): Fake site IDs used if add_random_sites is True
@@ -27,29 +31,41 @@ class CCD:
             raise ValueError("Path to data not valid")
 
         _, self.ext = os.path.splitext(filepath)
+        self.ext = self.ext.lower()
         self.spec = spec
         self.filepath = filepath
+        self.idhs = idhs
 
-        if self.ext == '.JSON':
+        if self.ext == '.json':
             self.ext = 'json'
             self.random_sites = random_sites
             self.random_sites_list = random_sites_list
+            # - [ ] @FIXME: (2017-07-28) drop id_columns
             self.id_columns = id_columns
-            self.ccd = None
-            self._load_from_json()
+            self.ccd_key = id_columns
+            self.ccd = self._load_from_json(self.filepath)
             self._add_random_sites()
-            self.infotb = self._extract_infotb()
-            self._add_unique_ids(self.ccd)
-            self._add_unique_ids(self.infotb)
+            # self.infotb = self._extract_infotb()
+            # self._add_unique_ids(self.ccd)
+            # self._add_unique_ids(self.infotb)
         elif self.ext == '.h5':
             self.ext = 'h5'
             store = pd.HDFStore(self.filepath)
             self.infotb = store.get('infotb')
-            self.item_1d = store.get('item_1d')
-            self.item_2d = store.get('item_2d')
+            self.item_1d = store.get('item1d')
+            self.item_2d = store.get('item2d')
             store.close()
+        elif os.path.isdir(filepath):
+            # Handle a directory of JSON files
+            # - [ ] @NOTE: (2017-07-28) manages 25k patients OK: i.e. loading
+            files = os.listdir(filepath)
+            if not all([os.path.splitext(f)[1].lower() == '.json'
+                        for f in files]):
+                raise ValueError('!!! Directory must only contain JSON files')
+            self.ccd = pd.concat(list((self._load_from_json(f) for f in files)))
+            self.infotb = self._extract_infotb()
         else:
-            raise ValueError('Expects a JSON or h5 file')
+            raise ValueError('!!! Expects a JSON or h5 file')
 
 
 
@@ -60,11 +76,13 @@ class CCD:
         txt.extend(['CCD object containing data from', self.json_filepath])
         return ' '.join(txt)
 
-    def _load_from_json(self):
+    @staticmethod
+    def _load_from_json(fp):
         """ Reads in CCD object into pandas DataFrame, checks that format is as expected."""
-        with open(self.filepath, 'r') as f:
-            self.ccd = pd.read_json(f)
-        self._check_ccd_quality()
+        with open(fp, 'r') as f:
+            ccd = pd.read_json(f)
+        # self._check_ccd_quality()
+        return ccd
 
     def _check_ccd_quality(self):
         # TODO: Implement quality checking
@@ -111,10 +129,13 @@ class CCD:
         return df.rename(columns={'item2d': 'value', 'item1d': 'value'})
 
     @staticmethod
-    def _convert_to_timedelta(df):
+    def _convert_to_timedelta(df, delta=False):
         """Convert time in DataFrame to timedelta (if 2d)."""
         if 'time' in df.columns:
-            df['time'] = pd.to_timedelta(df['time'], unit='h')
+            if delta:
+                df['time'] = pd.to_timedelta(df['time'], unit='h')
+            else:
+                df['time'] = pd.to_datetime(df['time'])
             df = df[['value', 'byvar', 'time']]
         else:
             df = df[['value', 'byvar']]
@@ -136,7 +157,7 @@ class CCD:
         if self.ext == 'json':
             df = self._build_df(nhic_code, by)
             df = self._rename_data_columns(df)
-            df = self._convert_to_timedelta(df)
+            df = self._convert_to_timedelta(df, delta=False)
             return df
         elif self.ext == 'h5':
             # method for h5
@@ -162,9 +183,8 @@ class CCD:
             raise ValueError('!!! ccd object derived from file with unrecognised extension {}'.format(DataRawNew.ccd.ext))
 
     def json2hdf(self,
-            ccd_key = ['site_id', 'episode_id'],
-            path=None,
-            progress_marker=True):
+        path, replace=True, progress_marker=True,
+        ccd_key = ['site_id', 'episode_id']):
         '''Extracts all data in ccd object to infotb, 1d, and 2d data frames in HDF5
         Args:
             ccd: ccd object (data frame with data column containing dictionary of dictionaries)
@@ -172,25 +192,99 @@ class CCD:
             path: path to save file
             progress_marker: displays a dot every 10 records
         '''
-        if path is None:
-            raise NameError('No path provided to which to save the HDF5 file')
-        if not all([k in self.ccd.columns for k in ccd_key]):
-            raise KeyError('!!! ccd_key should be a list of column names')
 
-        # Extract and save infotb
-        print('\n*** Extracting all infotb data from {} rows'.format(self.ccd.shape[0]))
-        infotb = self._extract_infotb()
+        if not os.path.exists(os.path.dirname(path)):
+            raise ValueError('!!! Requires valid path for HDF file')
 
-        # Extract and save 1d
-        print('\n*** Extracting all {}d data from {} rows'.format(1, self.ccd.shape[0]))
-        item_1d = self._extract_1d(ccd_key, progress_marker)
+        # Config
+        _minsize = 64
+        expected_cols = ('Index', 'data', 'episode_id', 'nhs_number', 'parse_file',
+            'parse_time', 'pas_number', 'site_id', 't_admission', 't_discharge')
+        cols_to_index = ['site_id', 'NHICcode']
 
-        # Extract and save 2d
-        print('\n*** Extracting all {}d data from {} rows'.format(2, self.ccd.shape[0]))
-        item_2d = self._extract_2d(ccd_key, progress_marker)
+        if replace:
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+        else:
+            if os.path.exists(path):
+                raise NotImplementedError('!!! No function to append to existing data store')
 
-        dd = {'item_1d': item_1d, 'item_2d': item_2d, 'infotb':infotb}
-        self._ccd2hdf(dd, path)
+        # Set variables
+        # - [ ] @TODO: (2017-07-28) optionally switch off compression if slows performance
+        store = pd.HDFStore(path, complib='zlib',complevel=9)
+        rows_infotb = [] # check here else will forget to reset
+        progress = ProgressMarker()
+
+        # Start loop
+        for i, row in enumerate(self.ccd.itertuples()):
+
+            progress.status()
+            assert row._fields  == expected_cols
+
+            # Construct infotb
+            row_infotb = {f:getattr(row, f) for f in row._fields if f != 'data'}
+            rows_infotb.append(pd.Series(row_infotb))
+
+            # Handle data
+            # - [ ] @NOTE: (2017-07-28) specify future columns to index now
+            data = getattr(row, 'data')
+            store.append('item2d', self.get_2d(data, row),
+                index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
+            store.append('item1d', self.get_1d(data, row),
+                index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
+
+        infotb = pd.DataFrame(rows_infotb)
+        store.append('infotb', infotb, data_columns=cols_to_index)
+
+        store.create_table_index('item1d', columns=['site_id'], optlevel=9, kind='full')
+        store.create_table_index('item2d', columns=['NHICcode'], optlevel=9, kind='full')
+
+        store.close()
+
+    @staticmethod
+    def to_timeish(s, delta=True, unit='h'):
+        """Convert to either datetime or deltatime"""
+        if delta:
+            return pd.to_timedelta(s, unit=unit)
+        else:
+            return pd.to_datetime(s)
+
+    def get_1d(self, data, row):
+        """Get 1d items
+        Args:
+            data: expects a dictionary
+        """
+        data1d = {k:v for k,v in data.items() if type(v) is not dict}
+
+        # data1d dictionary to dataframe df1d
+        df1d = pd.DataFrame([data1d], index=['value'], dtype=np.str).T
+        for k in self.ccd_key:
+            df1d[k] = getattr(row, k)
+        df1d.reset_index(inplace=True)
+        df1d.rename(columns={'index':'NHICcode'}, inplace=True)
+
+        return df1d
+
+    def get_2d(self, data, row):
+        """Get 2d items
+        Args:
+            data: expects a dictionary of dictionaries of lists
+        """
+        data2d = {k:v for k,v in data.items() if type(v) is dict}
+
+        # data2d dictionary to dataframe df2d
+        df2d = {k:v.keys() for k,v in data2d.items()}
+        df2d = {k:pd.DataFrame(v) for k,v in data2d.items()}
+        df2d = pd.concat(df2d)
+        df2d.reset_index(level=0, inplace=True)
+        df2d.rename(columns={'item2d':'value', 'level_0':'NHICcode'}, inplace=True)
+        df2d['time'] = self.to_timeish(df2d['time'])
+        if 'meta' not in df2d.columns:
+            df2d['meta'] = None
+
+        return df2d
 
     @staticmethod
     def df2feather(df, path):
@@ -206,104 +300,3 @@ class CCD:
         except IOError as e:
             warnings.warn('\n!!! Unable to save dataframe - do this now manually')
             print(e)
-
-    @staticmethod
-    def _ccd2hdf(dd, path):
-        """Save list of data frames to HDF5 store"""
-        if type(dd) is not dict:
-            raise ValueError('Expects dictionary of dataframes')
-        store = pd.HDFStore(path, mode='w')
-        {store.put(k,v) for k,v in dd.items()}
-        print(store)
-        store.close()
-
-    def _extract_infotb(self):
-        """Extract infotb from after JSON import"""
-        cols_2drop = ['data']
-        cols_timedelta = ['t_admission', 't_discharge', 'parse_time']
-
-        cols_2keep = [i for i  in self.ccd.columns if i not in cols_2drop]; cols_2keep
-        rows_out = []
-
-        for row in self.ccd.itertuples():
-            row_in = row._asdict()
-            row_out = {k:v for k,v in row_in.items() if k != 'data'}
-            try:
-                row_out['spell'] = row_in['data']['spell']
-                row_out['pid'] = row_in['data']['pid']
-            except ValueError as e:
-                row_out['spell'] = None
-                row_out['pid'] = None
-            rows_out.append(row_out)
-
-        infotb = pd.DataFrame(rows_out)
-        for col in cols_timedelta:
-            infotb[col] = pd.to_timedelta(infotb[col], unit='s')
-
-        return infotb
-
-    def _extract_1d(self, ccd_key, progress_marker):
-        """Extract 1d data from nested dictionary in dataframe after JSON import"""
-        df_from_rows = []
-        i = 0
-
-        for row in self.ccd.itertuples():
-            if progress_marker:
-                if i%10 == 0:
-                    print(".", end='')
-                i += 1
-            df_from_data = []
-            row_key = {k:getattr(row, k) for k in ccd_key}
-
-            for i, (nhic, d) in enumerate(row.data.items()):
-                # Assumes 2d data stored as dictionary
-                if type(d) == dict:
-                    continue
-                else:
-                    df_from_data.append({'NHICcode': nhic, 'item1d': d})
-
-            df = pd.DataFrame(df_from_data)
-            for k,v in row_key.items():
-                df[k] = v
-            df_from_rows.append(df)
-
-        df = pd.concat(df_from_rows)
-        return df
-
-    def _extract_2d(self, ccd_key, progress_marker):
-        """Extract 2d data from nested dictionary in dataframe after JSON import"""
-        df_from_rows = []
-        i = 0
-
-        for row in self.ccd.itertuples():
-
-            if progress_marker:
-                if i%10 == 0:
-                    print(".", end='')
-                i += 1
-
-            row_key = {k:getattr(row, k) for k in ccd_key}
-
-            try:
-                df = row.data
-                df = {k:pd.DataFrame.from_dict(v) for k,v in df.items() if type(v) is dict}
-                df = pd.concat(df)
-                df.reset_index(level=0, inplace=True)
-                df.rename(columns={'level_0':'NHICcode'}, inplace=True)
-
-                for k,v in row_key.items():
-                    df[k] = v
-                df_from_rows.append(df)
-            except ValueError as e:
-                # unable to concatenate, no data?
-                print('!!! Value error for {}'.format(row_key))
-                print(e)
-                continue
-            except Exception as e:
-                print('!!! Error for {}'.format(row_key))
-                print(e)
-                continue
-
-        df = pd.concat(df_from_rows)
-        df['time'] = pd.to_timedelta(df['time'], unit='h')
-        return df

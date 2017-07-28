@@ -5,7 +5,7 @@ library(data.table)
 library(cleanEHR)
 library(purrr)
 getwd()
-load("inspectEHR/data-raw/anon_public_da1000.RData")
+load("data-raw/anon_public_da1000.RData")
 ls()
 print(anon_info)
 ccd <- anon_ccd
@@ -21,9 +21,13 @@ saveRDS(ccd5, 'inspectEHR/data/ccd5.RDS')
 # Alternative
 # Try extracting by converting ccd to JSON
 # install.packages('RJSONIO')
+library(jsonlite)
 library(RJSONIO)
-x <- toJSON(ccd@episodes[[1]])
-x <- toJSON(ccd@episodes)
+x <- RJSONIO::toJSON(ccd@episodes[[1]])
+cat(x, file='tmp/ccd1_RJSONIO.JSON')
+y <- jsonlite::toJSON(ccd@episodes[[1]]@data)
+cat(y, file='tmp/ccd1_jsonlite.JSON')
+x <- jsonlite::toJSON(ccd@episodes@data)
 cat(x, file='inspectEHR/data/anon_public_da1000.JSON')
 
 # example extracting 1d data
