@@ -1,10 +1,12 @@
+import os
 import warnings
+import logging
+import itertools
+
 import numpy as np
 import pandas as pd
-import os
-from .utils import ProgressMarker
-import logging
 
+from .utils import ProgressMarker
 
 
 
@@ -178,7 +180,7 @@ class CCD:
         else:
             raise ValueError('!!! ccd object derived from file with unrecognised extension {}'.format(DataRawNew.ccd.ext))
 
-    def json2hdf(self, path, replace=True, progress_marker=True ):
+    def json2hdf(self, path, replace=True, dry_run=False, progress_marker=True, debug=False):
         '''Extracts all data in ccd object to infotb, 1d, and 2d data frames in HDF5
         Args:
             ccd: ccd object (data frame with data column containing dictionary of dictionaries)
@@ -209,45 +211,69 @@ class CCD:
         # Set variables
         # - [ ] @TODO: (2017-07-28) optionally switch off compression if slows performance
         store = pd.HDFStore(path, complib='zlib',complevel=9)
-        rows_infotb = [] # check here else will forget to reset
         progress = ProgressMarker()
 
         # Start loop
         for i, row in enumerate(self.ccd.itertuples()):
 
             # DEBUG
-            # if i > 10:
-            #     warnings.warn('\n!?! Debugging - iterations limited to 10')
-            #     break
+            if debug and i > 10:
+                warnings.warn('\n!?! Debugging - iterations limited to 10')
+                break
 
             progress.status()
             assert row._fields  == expected_cols
 
-            # Convert this to a function
-            # Construct infotb
+            # infotb - append as you go
             row_infotb = {f:getattr(row, f) for f in row._fields if f != 'data'}
-            rows_infotb.append(pd.Series(row_infotb))
+            row_infotb = pd.DataFrame(row_infotb, index=[i])
+            for col in cols_timeish:
+                row_infotb[col] = self.to_timeish(row_infotb[col], relative=not self.idhs, unit='s')
+            store.append('infotb', row_infotb, data_columns=self.ccd_key)
 
             # Handle data
             # - [ ] @NOTE: (2017-07-28) specify future columns to index now
             data = getattr(row, 'data')
-            try:
-                store.append('item2d', self.get_2d(data, row),
-                    index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
-                store.append('item1d', self.get_1d(data, row),
-                    index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
-            except Exception as e:
-                print(e)
-                logging.exception('Reason:', e)
+            if not dry_run:
+                try:
+                    store.append('item2d', self.get_2d(data, row),
+                        index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
+                    store.append('item1d', self.get_1d(data, row),
+                        index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
+                except Exception as e:
+                    logging.exception('Reason:', e)
+                    print(e)
 
-        infotb = pd.DataFrame(rows_infotb)
-        for col in cols_timeish:
-            infotb[col] = self.to_timeish(infotb[col], relative=not self.idhs, unit='s')
-        store.append('infotb', infotb, data_columns=cols_to_index)
+            # Capture data issues
+            row_inspector = {}
+            for k in self.ccd_key:
+                row_inspector[k]  = getattr(row, k)
+            row_inspector['data_n'] = len(data)
+            # Expect strings and dictionaries
+            row_inspector['data_types'] = str(set([type(i) for i in data.values()]))
+            # 1d inspection
+            row_inspector['str_n'] = len([type(i) for i in data.values() if type(i) is str])
+            row_inspector['str_len_max'] = pd.Series([len(i) for i in data.values() if type(i) is str]).max()
+
+            # 2d inspection
+            row_inspector['dict_n'] = len([type(i) for i in data.values() if type(i) is dict])
+            ll = set(itertools.chain(* [list(i.keys()) for i in data.values() if type(i) is dict]))
+            row_inspector['dict_fields_n'] = len(ll)
+            row_inspector['dict_fields'] = ', '.join([str(i) for i in ll])
+
+            # store field names as a list
+            # ll = [data.keys()]
+            # row_inspector['fields'] = ', '.join([str(i) for i in ll])
+
+            row_inspector = pd.DataFrame(row_inspector, index=[i])
+            store.append('inspecttb', row_inspector, index=False, data_columns=self.ccd_key)
 
 
-        store.create_table_index('item1d', columns=['site_id'], optlevel=9, kind='full')
-        store.create_table_index('item2d', columns=['NHICcode'], optlevel=9, kind='full')
+        for col in self.ccd_key:
+            store.create_table_index('infotb', columns=col, optlevel=9, kind='full')
+        for col in cols_to_index:
+            store.create_table_index('item1d', columns=col, optlevel=9, kind='full')
+            store.create_table_index('item2d', columns=col, optlevel=9, kind='full')
 
         store.close()
 
@@ -302,7 +328,7 @@ class CCD:
             assert set(expected_cols) == set(df2d.columns)
             assert len(expected_cols) == len(df2d.columns)
         except AssertionError as e:
-            # - [ ] @FIXME: (2017-07-29) recognised existing data issue
+            logging.exception('Reason:', e)
             warnings.warn('!!! item2d columns not as expected, see: {}'.format(df2d.columns))
             print(df2d.head())
 
