@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import os
 from .utils import ProgressMarker
+import logging
+
+
 
 
 # Primary class
@@ -34,15 +37,17 @@ class CCD:
         self.idhs = idhs
         self.ccd_key = ccd_key
 
-        if self.ext == '.json':
-            self.ext = 'json'
-            self.ccd = self._load_from_json(self.filepath)
-            self.infotb = self.ccd.drop('data', axis=1, inplace=False)
-        elif self.ext == '.h5':
+        if self.ext == '.h5':
             self.ext = 'h5'
             store = pd.HDFStore(self.filepath)
             self.infotb = store.get('infotb')
             store.close()
+        # - [ ] @TODO: (2017-07-28) refactor this, so that hdf is default and
+        # JSON parsing moved elsewhere
+        elif self.ext == '.json':
+            self.ext = 'json'
+            self.ccd = self._load_from_json(self.filepath)
+            self.infotb = self.ccd.drop('data', axis=1, inplace=False)
         elif os.path.isdir(filepath):
             # Handle a directory of JSON files
             # - [ ] @NOTE: (2017-07-28) manages 25k patients OK: i.e. loading
@@ -50,8 +55,8 @@ class CCD:
             if not all([os.path.splitext(f)[1].lower() == '.json'
                         for f in files]):
                 raise ValueError('!!! Directory must only contain JSON files')
-            self.ccd = pd.concat(list((self._load_from_json(f) for f in files)))
-            self.infotb = self._extract_infotb()
+            self.ccd = pd.concat(list((self._load_from_json(os.path.join(filepath, f)) for f in files)))
+            self.infotb = self.ccd.drop('data', axis=1, inplace=False)
         else:
             raise ValueError('!!! Expects a JSON or h5 file')
 
@@ -67,6 +72,7 @@ class CCD:
     @staticmethod
     def _load_from_json(fp):
         """ Reads in CCD object into pandas DataFrame, checks that format is as expected."""
+        print('*** Reading {}'.format(fp))
         with open(fp, 'r') as f:
             ccd = pd.read_json(f)
         # self._check_ccd_quality()
@@ -184,7 +190,7 @@ class CCD:
             raise ValueError('!!! Requires valid path for HDF file')
 
         # Config
-        _minsize = 64
+        _minsize = 128
         expected_cols = ('Index', 'data', 'episode_id', 'nhs_number', 'parse_file',
             'parse_time', 'pas_number', 'site_id', 't_admission', 't_discharge')
         cols_to_index = ['site_id', 'NHICcode']
@@ -197,7 +203,8 @@ class CCD:
                 pass
         else:
             if os.path.exists(path):
-                raise NotImplementedError('!!! No function to append to existing data store')
+                # raise NotImplementedError('!!! No function to append to existing data store')
+                print('*** Appending to {} - beware no duplicate checks exist'.format(path))
 
         # Set variables
         # - [ ] @TODO: (2017-07-28) optionally switch off compression if slows performance
@@ -216,6 +223,7 @@ class CCD:
             progress.status()
             assert row._fields  == expected_cols
 
+            # Convert this to a function
             # Construct infotb
             row_infotb = {f:getattr(row, f) for f in row._fields if f != 'data'}
             rows_infotb.append(pd.Series(row_infotb))
@@ -223,10 +231,14 @@ class CCD:
             # Handle data
             # - [ ] @NOTE: (2017-07-28) specify future columns to index now
             data = getattr(row, 'data')
-            store.append('item2d', self.get_2d(data, row),
-                index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
-            store.append('item1d', self.get_1d(data, row),
-                index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
+            try:
+                store.append('item2d', self.get_2d(data, row),
+                    index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
+                store.append('item1d', self.get_1d(data, row),
+                    index=False, data_columns=cols_to_index, min_itemsize = {'values': _minsize})
+            except Exception as e:
+                print(e)
+                logging.exception('Reason:', e)
 
         infotb = pd.DataFrame(rows_infotb)
         for col in cols_timeish:
@@ -284,7 +296,17 @@ class CCD:
         for k in self.ccd_key:
             df2d[k] = getattr(row, k)
 
-        return df2d
+        # handler for additional cols
+        expected_cols = 'NHICcode site_id episode_id time value meta'.split()
+        try:
+            assert set(expected_cols) == set(df2d.columns)
+            assert len(expected_cols) == len(df2d.columns)
+        except AssertionError as e:
+            # - [ ] @FIXME: (2017-07-29) recognised existing data issue
+            warnings.warn('!!! item2d columns not as expected, see: {}'.format(df2d.columns))
+            print(df2d.head())
+
+        return df2d[expected_cols]
 
     @staticmethod
     def df2feather(df, path):

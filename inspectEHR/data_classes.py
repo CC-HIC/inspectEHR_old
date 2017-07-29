@@ -258,7 +258,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         cols.append(tstart)
         res = infotb[cols]
         res = pd.merge(res, tmin , on=ke,  how='left')
-        res['gap_start'] = res[time] - res[tstart]
+        res['gap_start'] = res['time'] - res[tstart]
         return res.set_index(ke).gap_start
 
     @staticmethod
@@ -269,7 +269,7 @@ class DataRaw(object, metaclass=AutoMixinMeta):
         cols.append(tstop)
         res = infotb[cols]
         res = pd.merge(res, tmax , on=ke,  how='left')
-        res['gap_stop'] = res.time - res[tstop]
+        res['gap_stop'] = res['time'] - res[tstop]
         return res.set_index(ke).gap_stop
 
     @staticmethod
