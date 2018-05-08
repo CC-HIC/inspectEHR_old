@@ -133,16 +133,14 @@ The following plots show the admission profiles for each site. They are based up
 
 ### Event Level Dataitems
 
- Monthly Air Quality Graphs
+Test
 ```{r trial, echo=FALSE, message=FALSE, results="asis"}
 
-for(i in seq_along(hic_ints_warnings)) {
-  cat("  \n###",
-      hic_ints_warnings[i], "Something  \n")
-  
+for(i in seq_along(hic_dbls_warnings)) {
+  cat("\n")
+  cat("##", names(hic_dbls_warnings[i]), "Something....", "\n")
   cat("![](", paste0(path_name, "plots/", names(hic_ints_warnings[i]), ".png"), ")")
-
-  cat("  \n")
+  cat("\n")
 }
 
 ```

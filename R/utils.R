@@ -177,29 +177,7 @@ fix_oxford_time <- function(x) {
 }
 
 
-make_summary_table <- function() {
-
-  tibble(
-    sites = rep(all_sites, each = 5),
-    filter_type = rep(
-      c(
-        "range_error",
-        "boundary",
-        "duplicates",
-        "invalid_mandatory",
-        "valid"
-      ),
-      times = length(all_sites)
-    )
-  )
-
-}
-
 prepare_qref <- function() {
-
-  # qref <- read_csv("data/qr.csv") %>%
-  #   group_by(code_name, datatype) %>%
-  #   nest()
 
   qref <- read_csv("N:/My Documents/qr.csv") %>%
     arrange(code_name) %>%

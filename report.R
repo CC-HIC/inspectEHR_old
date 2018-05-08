@@ -169,21 +169,11 @@ invalid_months <- invalid_months(episodes, provenance)
 
 # provides an occupancy table but with missing data filled
 # Takes a really long time
-occupancy <- calc_site_occupancy(episode_length_tbl = episode_length)
+# occupancy <- calc_site_occupancy(episode_length_tbl = episode_length)
 
-# different data types to tackle:
-#   - Numerics; Longitudinal
-#   - String; longitudinal
-#   - Numerics; static
-#   - String; static
-
-##  Ints and Doubles -> Longitudinal
-qref %>%
-  filter(datatype == "hic_int" | datatype == "hic_dbl",
-         longitudinal == TRUE) %>%
-  select(code_name) %>% pull -> hic_long_numerical
-
-# Now lets go for broke
+###############
+# Doubles =====
+###############
 
 qref %>%
   select(code_name, datatype) %>%
@@ -192,6 +182,41 @@ qref %>%
   select(code_name) %>%
   pull -> all_dbls
 
+# Set up doubles
+hic_dbls <- vector(mode = "list", length = length(all_dbls))
+names(hic_dbls) <- all_dbls
+
+# And warinings
+hic_dbls_warnings <- vector(mode = "list", length = length(all_dbls))
+names(hic_dbls_warnings) <- all_dbls
+
+# create progress bar
+pb <- txtProgressBar(min = 0, max = length(all_dbls), style = 3)
+
+for (i in 1:length(all_dbls)) {
+
+  # the basics
+  hic_dbls[[all_dbls[i]]] <- try(validate_field(core, reference, input_field = all_dbls[i], qref, episode_length))
+
+  # Plotting
+  temp_plot <- try(plot(hic_dbls[[all_dbls[i]]]$flagged))
+  try(ggsave(filename = paste0(path_name, "plots/", all_dbls[i], ".png"), plot = temp_plot))
+
+  #Saving errors outside the main list
+  hic_dbls_warnings[[all_dbls[i]]] <- try(hic_dbls[[all_dbls[i]]]$warnings)
+
+  setTxtProgressBar(pb, i)
+
+}
+
+close(pb)
+
+rm(hic_dbls)
+
+###############
+# Integers ====
+###############
+
 qref %>%
   select(code_name, datatype) %>%
   distinct(code_name, .keep_all = TRUE) %>%
@@ -199,143 +224,83 @@ qref %>%
   select(code_name) %>%
   pull -> all_ints
 
-hic_dbls <- vector(mode = "list", length = length(all_dbls))
-names(hic_dbls) <- all_dbls
-
-# create progress bar
-pb <- txtProgressBar(min = 0, max = length(all_dbls), style = 3)
-
-for (i in 1:length(all_dbls)) {
-
-  hic_dbls[[all_dbls[i]]] <- try(validate_field(core, reference, input_field = all_dbls[i], qref, episode_length))
-
-  temp_plot <- try(plot(hic_dbls[[all_dbls[i]]]$flagged))
-
-  try(ggsave(filename = paste0(path_name, "plots/", all_dbls[i], ".png"), plot = temp_plot))
-
-  setTxtProgressBar(pb, i)
-
-}
-
-close(pb)
-
+# Set up vector for integers
 hic_ints <- vector(mode = "list", length = length(all_ints))
 names(hic_ints) <- all_ints
+
+# Set up the vector for warning messages
+# This is not ideal, but at this stage I cannot work out how to remove a list element and re-alocate the memory easily
+hic_ints_warnings <- vector(mode = "list", length = length(all_ints))
+names(hic_ints_warnings) <- all_ints
 
 pb <- txtProgressBar(min = 0, max = length(all_ints), style = 3)
 
 for (i in 1:length(all_ints)) {
 
+  # Basic Work
   hic_ints[[all_ints[i]]] <- try(validate_field(core, reference, input_field = all_ints[i], qref, episode_length))
+
+  # Plotting
+  temp_plot <- try(plot(hic_ints[[all_ints[i]]]$flagged))
+  try(ggsave(filename = paste0(path_name, "plots/", all_ints[i], ".png"), plot = temp_plot))
+
+  #Saving errors outside the main list
+  hic_ints_warnings[[all_ints[i]]] <- try(hic_ints[[all_ints[i]]]$warnings)
+
   setTxtProgressBar(pb, i)
 
 }
 
 close(pb)
 
-# report[[code_name]]$warn <- try(warning_summary(report[[code_name]]$raw))
-#
-# report[[code_name]]$na <- try(add_na(report[[code_name]]$raw, reference_table = reference) %>%
-#                                 group_by(site) %>%
-#                                 summarise(count = n()))
-#
-# report[[code_name]]$cov <- try(coverage(report[[code_name]]$raw, occupancy_tbl = occupancy,
-#                                         cases_all_tbl = cases_all))
-#
-# report[[code_name]]$cov_plot <- try(plot(report[[code_name]]$cov))
-#
-# report[[code_name]]$dist_plot <- try(plot(report[[code_name]]$raw))
-#
-# report[[code_name]]$raw <- NULL
+rm(hic_ints)
 
+###############
+# Strings =====
+###############
 
-save(dbls, file = "N:/My Documents/currentSave/doubles.RData")
+qref %>%
+  select(code_name, datatype) %>%
+  distinct(code_name, .keep_all = TRUE) %>%
+  filter(datatype == "hic_str") %>%
+  select(code_name) %>%
+  pull -> all_strs
 
-for (i in 1:length(hic_num)) {
+# Set up vector for integers
+hic_strs <- vector(mode = "list", length = length(all_strs))
+names(hic_strs) <- all_strs
 
-  # save_name_cov <- paste0(all_dbls[i], "_cov.png")
-  # save_name_dist <- paste0(all_dbls[i], "_dist.png")
-  save_name_plot <- paste0(hic_num[i], ".png")
+# Set up the vector for warning messages
+# This is not ideal, but at this stage I cannot work out how to remove a list element and re-alocate the memory easily
+hic_strs_warnings <- vector(mode = "list", length = length(all_strs))
+names(hic_strs_warnings) <- all_strs
 
+pb <- txtProgressBar(min = 0, max = length(all_strs), style = 3)
 
-  try(ggsave(plot = report[[hic_num[i]]]$plot,
-         filename = paste0("N:/My Documents/Projects/dataQuality/plots/B", save_name_plot),
-         dpi = 300, units = "cm",
-         width = 40, height = 22.5))
+for (i in 1:length(all_strs)) {
 
-  # try(ggsave(plot = dbls[[all_dbls[i]]]$distribution_plot,
-  #        filename = paste0("N:/My Documents/Projects/dataQuality/plots/", save_name_dist),
-  #        dpi = 300, units = "cm",
-  #        width = 40, height = 22.5))
+  # Basic Work
+  hic_strs[[all_strs[i]]] <- try(validate_field(core, reference, input_field = all_strs[i], qref, episode_length))
+
+  # Plotting
+  temp_plot <- try(plot(hic_strs[[all_strs[i]]]$flagged))
+  try(ggsave(filename = paste0(path_name, "plots/", all_strs[i], ".png"), plot = temp_plot))
+
+  #Saving errors outside the main list
+  hic_strs_warnings[[all_strs[i]]] <- try(hic_strs[[all_strs[i]]]$warnings)
+
+  setTxtProgressBar(pb, i)
 
 }
 
+close(pb)
 
-## Ints
+rm(hic_strs)
 
-## Strings
-
-## Static Strings
-
-alive <- extract(core_table = core, qref = qref, input = "NIHR_HIC_ICU_0097")
-
-alive %>%
-  group_by(site, value) %>%
-  summarise(n())
-
-alive %>% flag_range(qref = qref) %>%
-  group_by(range_error) %>%
-  summarise(n())
-
-
-alive %>% flag_bounds(los_table = episode_length) %>%
-  group_by(out_of_bounds) %>%
-  summarise(n())
-
-alive %>% flag_duplicate() %>%
-  group_by(duplicate) %>%
-  summarise(n())
-
-
-alive %>% flag_all(qref = qref, los_table = episode_length) %>%
-  filter(range_error != 0)
-
-
-data_item <- alive[1, "code_name"] %>% pull
-
-permitted <- qref %>%
-  filter(code_name == data_item) %>%
-  select(data) %>%
-  unnest() %>%
-  select(metadata_labels)
-
-%>%
-  pull
-
-  # joins to the quality refernce table to identify range errors
-  x %<>%
-    dplyr::mutate(range_error = ifelse(value %in% permitted, 0L, 1L)) %>%
-    dplyr::select(internal_id, range_error)
+save.image(file = paste0(path_name, "working_data/report_data.RData"))
 
 
 
-# Post Codes
-
-tbls[["events"]] %>%
-  filter(code_name == "NIHR_HIC_ICU_0428")
-
-
-
-%>%
-  select(string) %>% collect %>% distinct
-
-warnings <- lapply(report, '[[', 1)
-Nas <- lapply(report, '[[', 2)
-
-
-
-
-report$NIHR_HIC_ICU_0108$warnings
 
 
 

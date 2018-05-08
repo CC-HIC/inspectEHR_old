@@ -23,11 +23,15 @@ warning_summary.hic_dbl <- function(x) {
     full_join(dup, by = "site") %>%
     gather("error_type", "n", -site)
 
+  return(df)
+
 }
 
 
 warning_summary.hic_int <- function(x) {
 
-  warning_summary.hic_dbl(x)
+  df <- warning_summary.hic_dbl(x)
+
+  return(df)
 
 }

@@ -91,18 +91,9 @@ flag_range.hic_int <- function(x = NULL, qref = NULL) {
 #' @export
 flag_range.hic_str <- function(x = NULL, qref = NULL) {
 
-  data_item <- x[1, "code_name"] %>% pull
-
-  permitted <- qref %>%
-    filter(code_name == data_item) %>%
-    select(data) %>%
-    unnest() %>%
-    select(metadata_labels) %>%
-    pull
-
   # joins to the quality refernce table to identify range errors
   x %<>%
-    dplyr::mutate(range_error = ifelse(value %in% permitted, 0L, 1L)) %>%
+    dplyr::mutate(range_error = if_else(str_length(value) <= 2, 0L, 1L)) %>%
     dplyr::select(internal_id, range_error)
 
   class(x) <- append(class(x), "hic_str", after = 0)
