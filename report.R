@@ -18,8 +18,6 @@ library(magrittr)
 
 # library(hicreportr) / load_all() (if within the package)
 
-load_all()
-
 # ## Quality Reference Table
 # ## This contains reference ranges etc. that are required to flag hic events
 # ## You only need to run this if the QREF has changed and you are building
@@ -27,10 +25,12 @@ load_all()
 # qref <- prepare_qref()
 # use_data(qref, internal = TRUE, overwrite = TRUE)
 
-path_name <- "N:/My Documents/Projects/dataQuality/"
+path_name <- "/Users/edward/Documents/_dev/dataQualityReport/"
+
+#  "N:/My Documents/Projects/dataQuality/"
 
 # Prepare Connections
-ctn <- connect(database = "cchicnaughty")
+ctn <- connect(database = "lenient_dev", username = "edward")
 tbls <- retrieve(ctn)
 tbl_list <- dplyr::db_list_tables(ctn)
 
@@ -60,9 +60,6 @@ reference <- make_reference(episodes, provenance)
 
 all_sites <- reference %>% select(site) %>% distinct %>% pull
 
-# Presumably this is quite fragile as order would well change
-names(all_sites) <- c("Cambridge", "GSTT", "Imperial", "Oxford", "UCL")
-
 # Generate a list of unique hic codes as name placeholders
 hic_codes <- na.omit(unique(qref$code_name))
 
@@ -83,10 +80,15 @@ admitted_cases_unit <- report_cases_unit(events_table = tbls[["events"]], refere
 
 # This isn't working inside a for loop - not sure why
 plot_heatcal(episodes, provenance, site = all_sites[[1]])
+ggsave(filename = paste0(path_name, "plots/site_a.png"))
 plot_heatcal(episodes, provenance, site = all_sites[[2]])
+ggsave(filename = paste0(path_name, "plots/site_b.png"))
 plot_heatcal(episodes, provenance, site = all_sites[[3]])
+ggsave(filename = paste0(path_name, "plots/site_c.png"))
 plot_heatcal(episodes, provenance, site = all_sites[[4]])
+ggsave(filename = paste0(path_name, "plots/site_d.png"))
 plot_heatcal(episodes, provenance, site = all_sites[[5]])
+ggsave(filename = paste0(path_name, "plots/site_e.png"))
 
 # Length of Stay "Episode Length" ----
 
@@ -97,18 +99,16 @@ plot_heatcal(episodes, provenance, site = all_sites[[5]])
 ## filtering out invalid records
 
 # Epsiode_length
-episode_length <- epi_length(core)
+episode_length <- epi_length(core, useDeath = FALSE)
 
 # Seplls
 spells <- identify_spells(episode_length = episode_length, episodes = episodes)
 
-spells %>%
+spells %<>%
   group_by(site) %>%
   summarise(patients = n_distinct(nhs_number),
             episodes = n_distinct(episode_id),
             spells = n_distinct(spell_id))
-
-View(spells)
 
 # Episode validity long term average
 
@@ -183,74 +183,6 @@ qref %>%
          longitudinal == TRUE) %>%
   select(code_name) %>% pull -> hic_long_numerical
 
-
-vaildated_hr <- validate_field(core, reference, "NIHR_HIC_ICU_0108", qref, episode_length)
-
-validated <- validate_core_fields(core_table = core,
-                                  reference_table = reference,
-                                  qref = qref,
-                                  los_table = episode_length)
-
-core_fields <-
-  tribble(
-    ~hic_code,            ~min_periodicity,
-    "NIHR_HIC_ICU_0108",  6,               # HR
-    "NIHR_HIC_ICU_0129",  6,               # SpO2
-    "NIHR_HIC_ICU_0141",  1,               # Temp
-    "NIHR_HIC_ICU_0166",  0.5,             # Creatinine
-    "NIHR_HIC_ICU_0179",  0.5              # Hb
-  )
-
-# check the periodocity within valid months meets a threshold
-
-core_check <- vector(mode = "list", length = nrow(core_fields))
-names(core_check) <- core_fields$hic_code
-
-for (i in 1:nrow(core_fields)) {
-
-  validated[[core_fields$hic_code[i]]]$flagged %>%
-    filter(range_error == 0,
-           out_of_bounds == 0,
-           duplicate == 0,
-           periodicity >= min_periodicity[core_fields$hic_code[i]]) %>%
-    select(episode_id) %>%
-    distinct() %>%
-    pull -> core_check[[core_fields$hic_code[i]]]
-
-}
-
-Reduce(base::intersect, core_check) -> validated_core_episodes
-
-# drop those in invalid months
-# apply this by episode number back to the episode table
-# have a final list of:
-# valid months
-# valid episodes
-
-# validated_core_episodes episodes that have valided
-
-retrieve_unique_cases(episodes, provenance) %>%
-  filter(episode_id %in% validated_core_episodes) %>%
-  mutate(year = year(start_date),
-         month = month(start_date)) %>%
-  dplyr::anti_join(invalid_months, by = c("site" = "site",
-                                          "year" = "year",
-                                          "month" = "month")) %>%
-  select(episode_id) -> validated_episodes_final
-
-validated_episodes_final
-
-nrow(validated_episodes_final) == nrow(na.omit(validated_episodes_final))
-
-write.csv(validated_episodes_final, file = "S:/NIHR_HIC/validated_episodes/validated_episodes.csv", row.names = F)
-
-# This is where we want to be with a table containing all the "valid" episodes
-# epi_validity <- episode_validity(episode_length)
-
-
-#Testing individual
-crp <- report_dbl(core, qref, reference, episode_length, cases_all, occupancy)
-
 # Now lets go for broke
 
 qref %>%
@@ -260,8 +192,6 @@ qref %>%
   select(code_name) %>%
   pull -> all_dbls
 
-all_dbls
-
 qref %>%
   select(code_name, datatype) %>%
   distinct(code_name, .keep_all = TRUE) %>%
@@ -269,60 +199,55 @@ qref %>%
   select(code_name) %>%
   pull -> all_ints
 
-all_ints
+hic_dbls <- vector(mode = "list", length = length(all_dbls))
+names(hic_dbls) <- all_dbls
 
-# This takes a really long time. Only do this once.
-hr <- extract(core_table = core, qref = qref, input = "NIHR_HIC_ICU_0108")
-
-hr
-
-hr_flagged <- hr %>% flag_all(qref = qref, los_table = episode_length)
-
-hr_flagged %>%
-  filter(range_error != 0)
-
-hr_flagged %>%
-  filter(out_of_bounds != 0) %>% nrow()
-
-hr_flagged %>%
-  filter(duplicate != 0) %>% nrow()
-
-hr_ff <- hr_flagged %>%
-  flag_periodicity(los_table = episode_length)
-
-class(hr_ff)
-
-hr_ff %>%
-  filter(duplicate == 0,
-         out_of_bounds == 0,
-         range_error == 0) %>% View
+# create progress bar
+pb <- txtProgressBar(min = 0, max = length(all_dbls), style = 3)
 
 for (i in 1:length(all_dbls)) {
 
-  code_name <- all_dbls[i]
+  hic_dbls[[all_dbls[i]]] <- try(validate_field(core, reference, input_field = all_dbls[i], qref, episode_length))
 
-  report[[code_name]]$raw <- try(extract(core_table = core, qref = qref, input = code_name) %>%
-                                 flag_all(qref = qref, los_table = episode_length) %>%
-                                 flag_periodicity(los_table = episode_length))
+  temp_plot <- try(plot(hic_dbls[[all_dbls[i]]]$flagged))
 
-  report[[code_name]]$warn <- try(warning_summary(report[[code_name]]$raw))
+  try(ggsave(filename = paste0(path_name, "plots/", all_dbls[i], ".png"), plot = temp_plot))
 
-  report[[code_name]]$na <- try(add_na(report[[code_name]]$raw, reference_table = reference) %>%
-                                group_by(site) %>%
-                                summarise(count = n()))
-
-  report[[code_name]]$cov <- try(coverage(report[[code_name]]$raw, occupancy_tbl = occupancy,
-                                        cases_all_tbl = cases_all))
-
-  report[[code_name]]$cov_plot <- try(plot(report[[code_name]]$cov))
-
-  report[[code_name]]$dist_plot <- try(plot(report[[code_name]]$raw))
-
-  report[[code_name]]$raw <- NULL
-
-  print(paste("done", i, "of", length(all_dbls)))
+  setTxtProgressBar(pb, i)
 
 }
+
+close(pb)
+
+hic_ints <- vector(mode = "list", length = length(all_ints))
+names(hic_ints) <- all_ints
+
+pb <- txtProgressBar(min = 0, max = length(all_ints), style = 3)
+
+for (i in 1:length(all_ints)) {
+
+  hic_ints[[all_ints[i]]] <- try(validate_field(core, reference, input_field = all_ints[i], qref, episode_length))
+  setTxtProgressBar(pb, i)
+
+}
+
+close(pb)
+
+# report[[code_name]]$warn <- try(warning_summary(report[[code_name]]$raw))
+#
+# report[[code_name]]$na <- try(add_na(report[[code_name]]$raw, reference_table = reference) %>%
+#                                 group_by(site) %>%
+#                                 summarise(count = n()))
+#
+# report[[code_name]]$cov <- try(coverage(report[[code_name]]$raw, occupancy_tbl = occupancy,
+#                                         cases_all_tbl = cases_all))
+#
+# report[[code_name]]$cov_plot <- try(plot(report[[code_name]]$cov))
+#
+# report[[code_name]]$dist_plot <- try(plot(report[[code_name]]$raw))
+#
+# report[[code_name]]$raw <- NULL
+
 
 save(dbls, file = "N:/My Documents/currentSave/doubles.RData")
 

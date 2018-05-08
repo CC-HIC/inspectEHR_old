@@ -155,13 +155,14 @@ report_cases_unit <- function(events_table = NULL, reference_table = NULL){
 #'
 #' @examples
 #' epi_length(core, reference)
-epi_length <- function(core = NULL) {
+epi_length <- function(core = NULL, useDeath = TRUE) {
 
   alive <- epi_end_alive(core = core)
 
-  deceased <- resolve_date_time(core = core, "NIHR_HIC_ICU_0042", "NIHR_HIC_ICU_0043")()
+  if (useDeath) {
+    deceased <- resolve_date_time(core = core, "NIHR_HIC_ICU_0042", "NIHR_HIC_ICU_0043")()
 
-  alive %>%
+  alive %<>%
     left_join(deceased, by = "episode_id", suffix = c(".A", ".D")) %>%
     mutate(final_end = if_else(is.na(epi_end_dttm.A) |
                                  ((epi_end_dttm.D < epi_end_dttm.A) & !is.na(epi_end_dttm.D)),
@@ -171,6 +172,17 @@ epi_length <- function(core = NULL) {
     dplyr::mutate(los = difftime(epi_end_dttm, epi_start_dttm, units = "days")) %>%
     dplyr::mutate(validity = ifelse(is.na(epi_end_dttm), 1L,
                                ifelse(los <= 0, 2L, 0L)))
+
+  } else {
+
+    alive %<>%
+      dplyr::mutate(los = difftime(epi_end_dttm, epi_start_dttm, units = "days")) %>%
+      dplyr::mutate(validity = ifelse(is.na(epi_end_dttm), 1L,
+                                      ifelse(los <= 0, 2L, 0L)))
+
+  }
+
+  return(alive)
 
 }
 

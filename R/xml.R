@@ -17,7 +17,6 @@ xml_stats <- function(importstats) {
               select(file_id, site), by = c("provenance_id" = "file_id")) %>%
   group_by(site) %>%
   summarise(episodes_read = sum(episodes_read),
-           episodes_added = sum(episodes_added),
      episodes_missing_key = sum(episodes_missing_key),
            events_dropped = sum(events_dropped))
 

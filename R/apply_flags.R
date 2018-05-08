@@ -64,7 +64,7 @@ flag_range.hic_dbl <- function(x = NULL, qref = NULL) {
                                        ifelse(value < range_min, -1L, 0L))) %>%
     dplyr::select(internal_id, range_error)
 
-  class(x) <- append(class(x), "hic_dbl")
+  class(x) <- append(class(x), "hic_dbl", after = 0)
 
   return(x)
 
@@ -81,7 +81,7 @@ flag_range.hic_int <- function(x = NULL, qref = NULL) {
                                        ifelse(value < range_min, -1L, 0L))) %>%
     dplyr::select(internal_id, range_error)
 
-  class(x) <- append(class(x), "hic_int")
+  class(x) <- append(class(x), "hic_int", after = 0)
 
   return(x)
 
@@ -105,7 +105,7 @@ flag_range.hic_str <- function(x = NULL, qref = NULL) {
     dplyr::mutate(range_error = ifelse(value %in% permitted, 0L, 1L)) %>%
     dplyr::select(internal_id, range_error)
 
-  class(x) <- append(class(x), "hic_str")
+  class(x) <- append(class(x), "hic_str", after = 0)
 
   return(x)
 
@@ -150,7 +150,7 @@ flag_bounds.hic_dbl <- function(x = NULL, los_table = NULL) {
                                          ifelse(is.na(epi_start_dttm) | is.na(epi_end_dttm), NA, 0L)))) %>%
     select(internal_id, out_of_bounds)
 
-  class(x) <- append(class(x), "hic_dbl")
+  class(x) <- append(class(x), "hic_dbl", after = 0)
 
   return(x)
 
@@ -169,7 +169,7 @@ flag_bounds.hic_int <- function(x = NULL, los_table = NULL) {
                                          ifelse(is.na(epi_start_dttm) | is.na(epi_end_dttm), NA, 0L)))) %>%
     select(internal_id, out_of_bounds)
 
-  class(x) <- append(class(x), "hic_int")
+  class(x) <- append(class(x), "hic_int", after = 0)
 
   return(x)
 
@@ -188,7 +188,7 @@ flag_bounds.hic_str <- function(x = NULL, los_table = NULL) {
 
     select(internal_id, out_of_bounds)
 
-  class(x) <- append(class(x), "hic_str")
+  class(x) <- append(class(x), "hic_str", after = 0)
 
   return(x)
 
@@ -225,7 +225,7 @@ flag_duplicate.hic_dbl <- function(x = NULL) {
               .funs = funs(ifelse(is.na(.), 1L, .))) %>%
     select(internal_id, duplicate)
 
-  class(x) <- append(class(x), "hic_dbl")
+  class(x) <- append(class(x), "hic_dbl", after = 0)
 
   return(x)
 
@@ -245,7 +245,7 @@ flag_duplicate.hic_int <- function(x = NULL) {
               .funs = funs(ifelse(is.na(.), 1L, .))) %>%
     select(internal_id, duplicate)
 
-  class(x) <- append(class(x), "hic_int")
+  class(x) <- append(class(x), "hic_int", after = 0)
 
   return(x)
 
@@ -265,7 +265,7 @@ flag_duplicate.hic_str <- function(x = NULL) {
               .funs = funs(ifelse(is.na(.), 1L, .))) %>%
     select(internal_id, duplicate)
 
-  class(x) <- append(class(x), "hic_str")
+  class(x) <- append(class(x), "hic_str", after = 0)
 
   return(x)
 
@@ -317,7 +317,7 @@ flag_periodicity.hic_dbl <- function(x, los_table = NULL) {
     dplyr::select(episode_id, periodicity) %>%
     dplyr::right_join(x, by = "episode_id")
 
-  class(x) <- append(class(x), "hic_dbl")
+  class(x) <- append(class(x), "hic_dbl", after = 0)
 
   return(x)
 
@@ -342,7 +342,7 @@ flag_periodicity.hic_int <- function(x, los_table = NULL) {
     dplyr::select(episode_id, periodicity) %>%
     dplyr::right_join(x, by = "episode_id")
 
-  class(x) <- append(class(x), "hic_int")
+  class(x) <- append(class(x), "hic_int", after = 0)
 
   return(x)
 
@@ -365,7 +365,7 @@ flag_periodicity.hic_str <- function(x, los_table = NULL) {
 
 ## label any value without a periodicity as suspicious
 
-  class(x) <- append(class(x), "hic_str")
+  class(x) <- append(class(x), "hic_str", after = 0)
 
   return(x)
 

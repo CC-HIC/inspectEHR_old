@@ -31,7 +31,7 @@ extract <- function(core_table = NULL,
            hic_date = extract_date(core_table, input),
            hic_time = extract_time(core_table, input))
 
-  class(extracted_table) <- append(class(extracted_table), dataitem)
+  class(extracted_table) <- append(class(extracted_table), dataitem, after = 0)
 
   return(extracted_table)
 

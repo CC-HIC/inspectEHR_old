@@ -10,8 +10,6 @@
 #' @return A tibble 1 row per event
 plot_hic <- function(x) {
 
-
-
   # Identify the correct column type to pull out
   main_plot <- qref %>%
     filter(code_name == input) %>%
@@ -23,6 +21,33 @@ plot_hic <- function(x) {
   perfect_plot <- main_plot %>%
     switch(Density = plot_density(x),
          Histogram = plot_histogram(x))
+
+}
+
+plot.hic_int <- function(x) {
+
+  x %>%
+    filter(range_error == 0,
+           out_of_bounds == 0,
+           duplicate == 0) %>%
+    ggplot(aes(x = value, fill = site)) +
+    geom_density() +
+    facet_grid(~ site) +
+    theme_minimal()
+
+}
+
+
+plot.hic_dbl <- function(x) {
+
+  x %>%
+    filter(range_error == 0,
+           out_of_bounds == 0,
+           duplicate == 0) %>%
+    ggplot(aes(x = value, fill = site)) +
+    geom_density() +
+    facet_grid(~ site) +
+    theme_minimal()
 
 }
 
