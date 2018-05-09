@@ -67,9 +67,16 @@ flag_all <- function(x, los_table = NULL) {
       dplyr::mutate(periodicity = NA)
   }
 
-  class(x) <- append(class(x), event_class, after = 0)
+  if (any(class(x) %in% preserved_classes)) {
 
-  return(x)
+    return(x)
+
+  } else {
+
+    class(x) <- append(class(x), event_class, after = 0)
+    return(x)
+
+  }
 
 }
 
@@ -537,6 +544,8 @@ flag_duplicate.time_1d <- function(x = NULL) {
 #'
 #' These are only defined for 2d data
 #'
+#' Periodicity is given as event count per los unit. The default behaviour will be events/day.
+#'
 #' @param x
 #' @param ...
 #'
@@ -572,11 +581,19 @@ flag_periodicity_numeric <- function(x, los_table = NULL) {
     # count the number of events occurring
     dplyr::summarise(count = n()) %>%
     dplyr::left_join(los_table %>%
+
+                       # only checking validated episodes
                        dplyr::filter(validity == 0) %>%
                        dplyr::select(episode_id, los),
                      by = "episode_id") %>%
+
+    # calculate the periodicity
     dplyr::mutate(periodicity = count/as.numeric(los)) %>%
     dplyr::select(episode_id, periodicity) %>%
+
+    # right join back into the original object
+    # this will produce NAs on the following conditions: invalid LOS or no usable values
+    # NAs are also produced if the test is inappropraite i.e. 2d data
     dplyr::right_join(x, by = "episode_id")
 
   return(x)

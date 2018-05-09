@@ -11,7 +11,7 @@ summary.real_2d <- function(x) {
     summarise(low_value = sum(if_else(range_error == -1, 1L, 0L)),
               high_value = sum(if_else(range_error == 1, 1L, 0L)))
 
-  dup <- hrf %>%
+  dup <- x %>%
     group_by(site) %>%
     summarise(duplicate_events = sum(if_else(duplicate == 1, 1L, 0L)))
 

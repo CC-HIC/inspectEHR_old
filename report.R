@@ -8,8 +8,6 @@
 ## Load Required Packages
 
 library(tidyverse)
-library(devtools)
-library(dbplyr)
 library(lubridate)
 library(magrittr)
 
@@ -61,7 +59,7 @@ reference <- make_reference(episodes, provenance)
 all_sites <- reference %>% select(site) %>% distinct %>% pull
 
 # Generate a list of unique hic codes as name placeholders
-hic_codes <- na.omit(unique(qref$code_name))
+hic_codes <- qref$code_name
 
 # write the report list
 # report <- vector("list", length(hic_codes))
