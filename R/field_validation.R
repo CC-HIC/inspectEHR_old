@@ -10,7 +10,7 @@
 #' @param los_table episode length table
 #'
 #' @return a list with:
-#' \enume{
+#' \enumerate{
 #'   \item flagged events
 #'   \item warning summaries
 #'   \item

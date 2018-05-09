@@ -4,7 +4,7 @@
 \alias{flag_range}
 \title{Flag Events by Reference Range (S3 Generic)}
 \usage{
-flag_range(x, ...)
+flag_range(x)
 }
 \arguments{
 \item{x}{an extracted event table}

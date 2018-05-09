@@ -4,7 +4,7 @@
 \alias{flag_bounds}
 \title{Flag Events by Episode Boundaries (S3 Generic)}
 \usage{
-flag_bounds(x, ...)
+flag_bounds(x, los_table = NULL)
 }
 \arguments{
 \item{x}{an extracted tibble}

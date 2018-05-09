@@ -30,32 +30,18 @@ A secondary use of this package is to provide the processesing framework to prod
 
 ## Establish Database Connections
 
-```{r}
-ctn <- connect(database = "cchicnaughty")
-tbls <- retrieve(ctn)
-tbl_list <- dplyr::db_list_tables(ctn)
 
-episodes <- collect(tbls[["episodes"]])
-provenance <- collect(tbls[["provenance"]])
-metadata <- collect(tbls[["variables"]])
-```
 
 Collecting smaller tables is generally recommended. We would advise against collection of the main events table, as you will likely run into memory problems.
 
 ## Core Table
 
-```{r}
-core <- make_core(tbls[["events"]], tbls[["episodes"]], tbls[["provenance"]])
-```
 
 ## Figures
 
 The figure sizes have been customised so that you can easily put two images side-by-side. 
 
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
-```
+
 
 You can enable figure captions by `fig_caption: yes` in YAML:
 

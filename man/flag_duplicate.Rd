@@ -4,7 +4,7 @@
 \alias{flag_duplicate}
 \title{Flag Duplicates (S3 Generic)}
 \usage{
-flag_duplicate(x, ...)
+flag_duplicate(x)
 }
 \arguments{
 \item{...}{}

@@ -4,7 +4,7 @@
 \alias{flag_periodicity}
 \title{Flags for Periodicity of a Data Item (S3 Generic)}
 \usage{
-flag_periodicity(x, ...)
+flag_periodicity(x, los_table = NULL)
 }
 \arguments{
 \item{...}{}
@@ -17,4 +17,6 @@ level rather than site level.
 }
 \details{
 These are only defined for 2d data
+
+Periodicity is given as event count per los unit. The default behaviour will be events/day.
 }

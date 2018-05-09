@@ -20,7 +20,7 @@ validate_field(core_table = NULL, reference_table = NULL,
 }
 \value{
 a list with:
-\enume{
+\enumerate{
   \item flagged events
   \item warning summaries
   \item

@@ -4,12 +4,10 @@
 \alias{flag_all}
 \title{Apply all validation flags to an extracted data item}
 \usage{
-flag_all(x, qref = NULL, los_table = NULL)
+flag_all(x, los_table = NULL)
 }
 \arguments{
 \item{x}{extracted data item}
-
-\item{qref}{quality reference table}
 
 \item{los_table}{episode length table}
 }
