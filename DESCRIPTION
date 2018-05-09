@@ -1,4 +1,4 @@
-Package: hicreportr
+Package: inspectEHR
 Type: Package
 Title: Data Quality Reporting for CC-HIC
 Version: 0.1.0
@@ -10,7 +10,7 @@ Description: This package helps to produce data quality reports for CC-HIC.
 Depends:
     R (>= 3.4.3),
     dplyr,
-    RPostgreSQL,
+    RPostgres,
     DBI,
     lubridate,
     dbplyr,
@@ -20,7 +20,7 @@ Encoding: UTF-8
 LazyData: true
 Imports:
     dplyr,
-    RPostgreSQL,
+    RPostgres,
     DBI,
     ggplot2,
     tidyr,

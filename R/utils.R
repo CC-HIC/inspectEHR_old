@@ -11,7 +11,7 @@
 #' @examples
 connect <- function(host = 'localhost', username = 'ucasper', password = "superdb", database = 'cchic') {
 
-  DBI::dbConnect(RPostgreSQL::PostgreSQL(),
+  DBI::dbConnect(RPostgres::Postgres(),
                  host=host,
                  port=5432,
                  user=username,
@@ -177,10 +177,15 @@ fix_oxford_time <- function(x) {
 }
 
 
-prepare_qref <- function() {
+# ===== CLASS CHECKING
 
-  qref <- read_csv("N:/My Documents/qr.csv") %>%
-    arrange(code_name) %>%
-    distinct(code_name, .keep_all = TRUE)
 
-}
+is.string_2d <- function(x) inherits(x, "string_2d")
+is.string_1d <- function(x) inherits(x, "string_1d")
+is.integer_2d <- function(x) inherits(x, "integer_2d")
+is.integer_1d <- function(x) inherits(x, "integer_1d")
+is.real_2d <- function(x) inherits(x, "real_2d")
+is.real_1d <- function(x) inherits(x, "real_1d")
+is.datetime_1d <- function(x) inherits(x, "datetime_1d")
+is.date_1d <- function(x) inherits(x, "date_1d")
+is.time_1d <- function(x) inherits(x, "time_1d")

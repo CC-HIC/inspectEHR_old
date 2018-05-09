@@ -3,7 +3,7 @@
 ## Description
 
 ## The typical flow is:
-## Extract > Flag > Summarise > Plot
+## Extract > Flag > Summary > Plot
 
 ## Load Required Packages
 

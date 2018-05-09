@@ -4,14 +4,22 @@
 \alias{epi_length}
 \title{Calculate Episode Length}
 \usage{
-epi_length(core, useMortality = FALSE, reference_table = NULL,
-  na.rm = FALSE)
+epi_length(core = NULL, useDeath = TRUE)
 }
 \arguments{
 \item{core}{core table from \code{make_core()}}
-
-\item{useMortality}{logical value for updating with mortality data}
 }
 \description{
-Calculates length of stay and returns a tibble tagged with mortality data
+Calculates length of stay from:
+\itemize{
+  \item episode start date time: NHIC 0411
+  \item episode end date timeL NHIC 0412
+  \item date of in unit death: NHIC 0042
+  \item time of in unit death: NHIC 0043
+}
+For cases where there is a discharge date, time and death date and time, we use the
+mortality data if this occurs earlier than the discharge data.
+}
+\examples{
+epi_length(core, reference)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/apply_flags.R
 \name{flag_all}
 \alias{flag_all}
-\title{Apply warning flags to extracted data item}
+\title{Apply all validation flags to an extracted data item}
 \usage{
 flag_all(x, qref = NULL, los_table = NULL)
 }
@@ -17,6 +17,14 @@ flag_all(x, qref = NULL, los_table = NULL)
 a tibble with flags applied
 }
 \description{
-Applies warning flags to an extracted HIC data item. This is a wrapper function
-to flag_range, flag_bounds and flag duplicate
+Applies validation flags to an extracted data item. This is a wrapper function with conditional
+logic to flag for:
+data item out of value range
+data item out of temporal range of the episode
+duplication of item
+periodicity
+}
+\details{
+periodicity checking is conditional on the preceding 3 flags, as ony those events that validate
+are taking into consideration of periodicity checking
 }

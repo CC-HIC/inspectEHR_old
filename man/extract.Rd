@@ -2,17 +2,12 @@
 % Please edit documentation in R/extract.R
 \name{extract}
 \alias{extract}
-\title{Extract Validated NHIC Events}
+\title{Extract NHIC Events}
 \usage{
-extract(core_table = NULL, valid_episodes = NULL, qref = NULL,
-  input = "NIHR_HIC_ICU_0557")
+extract(core_table = NULL, input = "NIHR_HIC_ICU_0557")
 }
 \arguments{
 \item{core_table}{core table}
-
-\item{valid_episodes}{an integer vector of episode IDs that have passed the validation process}
-
-\item{qref}{the quality reference table}
 
 \item{input}{the input variable of choice}
 }

@@ -9,11 +9,10 @@
 extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 
   # ensure the core table is provided
-  if (is.null(core_table) | is.null(qref)) stop("You must include both the core table and quality reference")
+  if (is.null(core_table)) stop("You must include the core table and quality reference")
 
   # Identify the correct column type to pull out
-  dataitem <- makeDict(metadata) %>%
-    mutate(class = paste(primary_column, type, sep = "_")) %>%
+  dataitem <- qref %>%
     filter(code_name == input) %>%
     select(class) %>%
     pull
@@ -198,7 +197,7 @@ extract_datetime_1d <- function(core_table = NULL, input = NULL) {
     dplyr::collect() %>%
     dplyr::rename(value = datetime,
                   internal_id = event_id) %>%
-    dplyr::arrange(episode_id, datetime)
+    dplyr::arrange(episode_id)
 
   return(extracted_table)
 
@@ -222,7 +221,7 @@ extract_date_1d <- function(core_table = NULL, input = NULL) {
     dplyr::collect() %>%
     dplyr::rename(value = date,
                   internal_id = event_id) %>%
-    dplyr::arrange(episode_id, date)
+    dplyr::arrange(episode_id)
 
   return(extracted_table)
 
@@ -246,7 +245,7 @@ extract_time_1d <- function(core_table = NULL, input = NULL) {
     dplyr::collect() %>%
     dplyr::rename(value = time,
                   internal_id = event_id) %>%
-    dplyr::arrange(episode_id, time)
+    dplyr::arrange(episode_id)
 
   return(extracted_table)
 

@@ -148,6 +148,13 @@ report_cases_unit <- function(events_table = NULL, reference_table = NULL){
 #' For cases where there is a discharge date, time and death date and time, we use the
 #' mortality data if this occurs earlier than the discharge data.
 #'
+#' Validation is coded as follows:
+#' \itemize{
+#'   \item 0: episode validates as ok
+#'   \item 1: there is no episode end datetime
+#'   \item 2: episode stay was <= 0 - i.e. not possible
+#' }
+#'
 #' @param core core table from \code{make_core()}
 #'
 #' @return

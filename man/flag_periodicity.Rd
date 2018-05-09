@@ -15,3 +15,6 @@ and provides a column indicating the periodicity of that data item stratified by
 number. This is a similar concept to the coverage mapping, although is looking at patient
 level rather than site level.
 }
+\details{
+These are only defined for 2d data
+}

@@ -1,30 +1,73 @@
-# ==== APPLY ALL FLAGS
-
-
-#' Apply warning flags to extracted data item
+#' Apply all validation flags to an extracted data item
 #'
-#' Applies warning flags to an extracted HIC data item. This is a wrapper function
-#' to flag_range, flag_bounds and flag duplicate
+#' Applies validation flags to an extracted data item. This is a wrapper function with conditional
+#' logic to flag for:
+#' data item out of value range
+#' data item out of temporal range of the episode
+#' duplication of item
+#' periodicity
+#'
+#' periodicity checking is conditional on the preceding 3 flags, as ony those events that validate
+#' are taking into consideration of periodicity checking
 #'
 #' @param x extracted data item
-#' @param qref quality reference table
 #' @param los_table episode length table
 #'
 #' @return a tibble with flags applied
 #' @export
 #'
 #' @examples
-flag_all <- function(x, qref = NULL, los_table = NULL) {
+flag_all <- function(x, los_table = NULL) {
 
-  rf <- x %>% flag_range(qref = qref)
-  bf <- x %>% flag_bounds(los_table = los_table)
-  df <- x %>% flag_duplicate()
+  if (!(any(class(x) %in% preserved_classes))) {
+    stop("this function is not defined for this class")
+  }
 
+  # check the availible methods for this class
+  avail_methods <- methods(class = class(x)[1])
+  event_class <- class(x)[1]
+
+  # Apply this flag if an appropriate method exists, or return NA
+  if (any(grepl("flag_range", avail_methods))) {
+    rf <- x %>% flag_range()
+  } else {
+    rf <- x %>%
+      dplyr::mutate(range_error = NA) %>%
+      dplyr::select(internal_id, range_error)
+  }
+
+  if (any(grepl("flag_bounds", avail_methods))) {
+    bf <- x %>% flag_bounds(los_table = los_table)
+  } else {
+    bf <- x %>%
+      dplyr::mutate(out_of_bounds = NA) %>%
+      dplyr::select(internal_id, out_of_bounds)
+  }
+
+  if (any(grepl("flag_duplicate", avail_methods))) {
+    df <- x %>% flag_duplicate()
+  } else {
+    df <- x %>%
+      dplyr::mutate(duplicate = NA) %>%
+      dplyr::select(internal_id, duplicate)
+  }
+
+  # Join the flags above back to the original df
+  # This step must be performed prior to periodicity checking
   x %<>%
     left_join(rf, by = "internal_id") %>%
     left_join(bf, by = "internal_id") %>%
-    left_join(df, by = "internal_id") %>%
-    flag_periodicity(los_table = los_table)
+    left_join(df, by = "internal_id")
+
+  # Apply periodicity if a method exists
+  if (any(grepl("flag_periodicity", avail_methods))) {
+    x %<>% flag_periodicity(los_table = los_table)
+  } else {
+    x %<>%
+      dplyr::mutate(periodicity = NA)
+  }
+
+  class(x) <- append(class(x), event_class, after = 0)
 
   return(x)
 
@@ -49,13 +92,21 @@ flag_all <- function(x, qref = NULL, los_table = NULL) {
 #'
 #'
 #' @examples
-flag_range <- function(x, ...) {
+flag_range <- function(x) {
   UseMethod("flag_range", x)
 }
 
 
 #' @export
-flag_range.hic_dbl <- function(x = NULL, qref = NULL) {
+flag_range.default <- function(...) {
+
+  print("there are no methods for this class")
+
+}
+
+
+#' @export
+flag_range.real_2d <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
   x %<>%
@@ -64,7 +115,7 @@ flag_range.hic_dbl <- function(x = NULL, qref = NULL) {
                                        ifelse(value < range_min, -1L, 0L))) %>%
     dplyr::select(internal_id, range_error)
 
-  class(x) <- append(class(x), "hic_dbl", after = 0)
+  class(x) <- append(class(x), "real_2d", after = 0)
 
   return(x)
 
@@ -72,7 +123,7 @@ flag_range.hic_dbl <- function(x = NULL, qref = NULL) {
 
 
 #' @export
-flag_range.hic_int <- function(x = NULL, qref = NULL) {
+flag_range.real_1d <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
   x %<>%
@@ -81,7 +132,7 @@ flag_range.hic_int <- function(x = NULL, qref = NULL) {
                                        ifelse(value < range_min, -1L, 0L))) %>%
     dplyr::select(internal_id, range_error)
 
-  class(x) <- append(class(x), "hic_int", after = 0)
+  class(x) <- append(class(x), "real_1d", after = 0)
 
   return(x)
 
@@ -89,14 +140,95 @@ flag_range.hic_int <- function(x = NULL, qref = NULL) {
 
 
 #' @export
-flag_range.hic_str <- function(x = NULL, qref = NULL) {
+flag_range.integer_2d <- function(x = NULL) {
+
+  # joins to the quality refernce table to identify range errors
+  x %<>%
+    dplyr::left_join(qref, by = "code_name") %>%
+    dplyr::mutate(range_error = ifelse(value > range_max, 1L,
+                                       ifelse(value < range_min, -1L, 0L))) %>%
+    dplyr::select(internal_id, range_error)
+
+  class(x) <- append(class(x), "integer_2d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_range.integer_1d <- function(x = NULL) {
+
+  # joins to the quality refernce table to identify range errors
+  x %<>%
+    dplyr::left_join(qref, by = "code_name") %>%
+    dplyr::mutate(range_error = ifelse(value > range_max, 1L,
+                                       ifelse(value < range_min, -1L, 0L))) %>%
+    dplyr::select(internal_id, range_error)
+
+  class(x) <- append(class(x), "integer_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_range.string_2d <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
   x %<>%
     dplyr::mutate(range_error = if_else(str_length(value) <= 2, 0L, 1L)) %>%
     dplyr::select(internal_id, range_error)
 
-  class(x) <- append(class(x), "hic_str", after = 0)
+  class(x) <- append(class(x), "string_2d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_range.string_1d <- function(x = NULL) {
+
+  # joins to the quality refernce table to identify range errors
+  x %<>%
+    dplyr::mutate(range_error = if_else(str_length(value) <= 2, 0L, 1L)) %>%
+    dplyr::select(internal_id, range_error)
+
+  class(x) <- append(class(x), "string_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_range.date_1d <- function(x = NULL) {
+
+  # joins to the quality refernce table to identify range errors
+  x %<>%
+    dplyr::mutate(range_error = if_else(value > Sys.Date(), 1L,
+                                        if_else(value < lubridate::dmy("01/01/1900"), -1L, 0))) %>%
+    dplyr::select(internal_id, range_error)
+
+  class(x) <- append(class(x), "date_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_range.datetime_1d <- function(x = NULL) {
+
+  # joins to the quality refernce table to identify range errors
+  x %<>%
+    dplyr::mutate(range_error = if_else(value > Sys.time(), 1L,
+                                        if_else(value < lubridate::dmy_hms("01/01/1900 00:00:00"), -1L, 0))) %>%
+    dplyr::select(internal_id, range_error)
+
+  class(x) <- append(class(x), "datetime_1d", after = 0)
 
   return(x)
 
@@ -124,13 +256,20 @@ flag_range.hic_str <- function(x = NULL, qref = NULL) {
 #' @examples
 #'
 #' flag_bounds(x, los_table)
-flag_bounds <- function(x, ...) {
+flag_bounds <- function(x, los_table = NULL) {
   UseMethod("flag_bounds", x)
 }
 
 
+flag_bounds.default <- function(...) {
+
+  print("there are no methods for this class")
+
+}
+
+
 #' @export
-flag_bounds.hic_dbl <- function(x = NULL, los_table = NULL) {
+flag_bounds.real_2d <- function(x = NULL, los_table = NULL) {
 
   x %<>%
     left_join(los_table %>% select(-site), by = "episode_id") %>%
@@ -141,7 +280,7 @@ flag_bounds.hic_dbl <- function(x = NULL, los_table = NULL) {
                                          ifelse(is.na(epi_start_dttm) | is.na(epi_end_dttm), NA, 0L)))) %>%
     select(internal_id, out_of_bounds)
 
-  class(x) <- append(class(x), "hic_dbl", after = 0)
+  class(x) <- append(class(x), "real_2d", after = 0)
 
   return(x)
 
@@ -149,7 +288,7 @@ flag_bounds.hic_dbl <- function(x = NULL, los_table = NULL) {
 
 
 #' @export
-flag_bounds.hic_int <- function(x = NULL, los_table = NULL) {
+flag_bounds.integer_2d <- function(x = NULL, los_table = NULL) {
 
   x %<>%
     left_join(los_table %>% select(-site), by = "episode_id") %>%
@@ -160,7 +299,7 @@ flag_bounds.hic_int <- function(x = NULL, los_table = NULL) {
                                          ifelse(is.na(epi_start_dttm) | is.na(epi_end_dttm), NA, 0L)))) %>%
     select(internal_id, out_of_bounds)
 
-  class(x) <- append(class(x), "hic_int", after = 0)
+  class(x) <- append(class(x), "integer_2d", after = 0)
 
   return(x)
 
@@ -168,7 +307,7 @@ flag_bounds.hic_int <- function(x = NULL, los_table = NULL) {
 
 
 #' @export
-flag_bounds.hic_str <- function(x = NULL, los_table = NULL) {
+flag_bounds.string_2d <- function(x = NULL, los_table = NULL) {
 
     x %<>%
       left_join(los_table %>% select(-site), by = "episode_id") %>%
@@ -179,7 +318,7 @@ flag_bounds.hic_str <- function(x = NULL, los_table = NULL) {
 
     select(internal_id, out_of_bounds)
 
-  class(x) <- append(class(x), "hic_str", after = 0)
+  class(x) <- append(class(x), "string_2d", after = 0)
 
   return(x)
 
@@ -198,13 +337,20 @@ flag_bounds.hic_str <- function(x = NULL, los_table = NULL) {
 #' @export
 #'
 #' @examples
-flag_duplicate <- function(x, ...) {
+flag_duplicate <- function(x) {
   UseMethod("flag_duplicate", x)
 }
 
 
+flag_duplicate.default <- function(...) {
+
+  print("no default methods are defined for this class")
+
+}
+
+
 #' @export
-flag_duplicate.hic_dbl <- function(x = NULL) {
+flag_duplicate.real_2d <- function(x = NULL) {
 
   x %<>%
     ungroup() %>%
@@ -216,7 +362,7 @@ flag_duplicate.hic_dbl <- function(x = NULL) {
               .funs = funs(ifelse(is.na(.), 1L, .))) %>%
     select(internal_id, duplicate)
 
-  class(x) <- append(class(x), "hic_dbl", after = 0)
+  class(x) <- append(class(x), "real_2d", after = 0)
 
   return(x)
 
@@ -224,7 +370,27 @@ flag_duplicate.hic_dbl <- function(x = NULL) {
 
 
 #' @export
-flag_duplicate.hic_int <- function(x = NULL) {
+flag_duplicate.real_1d <- function(x = NULL) {
+
+  x %<>%
+    ungroup() %>%
+    distinct(episode_id, value, .keep_all = TRUE) %>%
+    mutate(duplicate = 0L) %>%
+    select(internal_id, duplicate) %>%
+    right_join(x, by = "internal_id") %>%
+    mutate_at(.vars = vars(duplicate),
+              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+    select(internal_id, duplicate)
+
+  class(x) <- append(class(x), "real_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_duplicate.integer_2d <- function(x = NULL) {
 
   x %<>%
     ungroup() %>%
@@ -236,7 +402,7 @@ flag_duplicate.hic_int <- function(x = NULL) {
               .funs = funs(ifelse(is.na(.), 1L, .))) %>%
     select(internal_id, duplicate)
 
-  class(x) <- append(class(x), "hic_int", after = 0)
+  class(x) <- append(class(x), "integer_2d", after = 0)
 
   return(x)
 
@@ -244,7 +410,27 @@ flag_duplicate.hic_int <- function(x = NULL) {
 
 
 #' @export
-flag_duplicate.hic_str <- function(x = NULL) {
+flag_duplicate.integer_1d <- function(x = NULL) {
+
+  x %<>%
+    ungroup() %>%
+    distinct(episode_id, value, .keep_all = TRUE) %>%
+    mutate(duplicate = 0L) %>%
+    select(internal_id, duplicate) %>%
+    right_join(x, by = "internal_id") %>%
+    mutate_at(.vars = vars(duplicate),
+              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+    select(internal_id, duplicate)
+
+  class(x) <- append(class(x), "integer_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_duplicate.string_2d <- function(x = NULL) {
 
   x %<>%
     ungroup() %>%
@@ -256,12 +442,91 @@ flag_duplicate.hic_str <- function(x = NULL) {
               .funs = funs(ifelse(is.na(.), 1L, .))) %>%
     select(internal_id, duplicate)
 
-  class(x) <- append(class(x), "hic_str", after = 0)
+  class(x) <- append(class(x), "string_2d", after = 0)
 
   return(x)
 
 }
 
+
+#' @export
+flag_duplicate.string_1d <- function(x = NULL) {
+
+  x %<>%
+    ungroup() %>%
+    distinct(episode_id, value, .keep_all = TRUE) %>%
+    mutate(duplicate = 0L) %>%
+    select(internal_id, duplicate) %>%
+    right_join(x, by = "internal_id") %>%
+    mutate_at(.vars = vars(duplicate),
+              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+    select(internal_id, duplicate)
+
+  class(x) <- append(class(x), "string_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_duplicate.datetime_1d <- function(x = NULL) {
+
+  x %<>%
+    ungroup() %>%
+    distinct(episode_id, value, .keep_all = TRUE) %>%
+    mutate(duplicate = 0L) %>%
+    select(internal_id, duplicate) %>%
+    right_join(x, by = "internal_id") %>%
+    mutate_at(.vars = vars(duplicate),
+              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+    select(internal_id, duplicate)
+
+  class(x) <- append(class(x), "datetime_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_duplicate.date_1d <- function(x = NULL) {
+
+  x %<>%
+    ungroup() %>%
+    distinct(episode_id, value, .keep_all = TRUE) %>%
+    mutate(duplicate = 0L) %>%
+    select(internal_id, duplicate) %>%
+    right_join(x, by = "internal_id") %>%
+    mutate_at(.vars = vars(duplicate),
+              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+    select(internal_id, duplicate)
+
+  class(x) <- append(class(x), "date_1d", after = 0)
+
+  return(x)
+
+}
+
+
+#' @export
+flag_duplicate.time_1d <- function(x = NULL) {
+
+  x %<>%
+    ungroup() %>%
+    distinct(episode_id, value, .keep_all = TRUE) %>%
+    mutate(duplicate = 0L) %>%
+    select(internal_id, duplicate) %>%
+    right_join(x, by = "internal_id") %>%
+    mutate_at(.vars = vars(duplicate),
+              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+    select(internal_id, duplicate)
+
+  class(x) <- append(class(x), "time_1d", after = 0)
+
+  return(x)
+
+}
 
 #' Flags for Periodicity of a Data Item (S3 Generic)
 #'
@@ -270,6 +535,8 @@ flag_duplicate.hic_str <- function(x = NULL) {
 #' number. This is a similar concept to the coverage mapping, although is looking at patient
 #' level rather than site level.
 #'
+#' These are only defined for 2d data
+#'
 #' @param x
 #' @param ...
 #'
@@ -277,12 +544,11 @@ flag_duplicate.hic_str <- function(x = NULL) {
 #' @export
 #'
 #' @examples
-flag_periodicity <- function(x, ...) {
+flag_periodicity <- function(x, los_table = NULL) {
   UseMethod("flag_periodicity", x)
 }
 
 
-#' @export
 flag_periodicity.default <- function(x) {
 
   print("There are no default methods for this class")
@@ -290,15 +556,20 @@ flag_periodicity.default <- function(x) {
 }
 
 
-#' @export
-flag_periodicity.hic_dbl <- function(x, los_table = NULL) {
+flag_periodicity_numeric <- function(x, los_table = NULL) {
 
   x %<>%
+
+    # filter out values that cannot be taken into consideration for this calculation
     dplyr::filter(out_of_bounds == 0,
                   range_error == 0,
                   duplicate == 0) %>%
+
+    # only need 1 value of interest to track periodicity (we'll choose datetime)
     dplyr::select(episode_id, datetime) %>%
     dplyr::group_by(episode_id) %>%
+
+    # count the number of events occurring
     dplyr::summarise(count = n()) %>%
     dplyr::left_join(los_table %>%
                        dplyr::filter(validity == 0) %>%
@@ -308,40 +579,34 @@ flag_periodicity.hic_dbl <- function(x, los_table = NULL) {
     dplyr::select(episode_id, periodicity) %>%
     dplyr::right_join(x, by = "episode_id")
 
-  class(x) <- append(class(x), "hic_dbl", after = 0)
+  return(x)
+
+}
+
+
+flag_periodicity.real_2d <- function(x, los_table = NULL) {
+
+  x <- flag_periodicity_numeric(x, los_table = los_table)
+
+  class(x) <- append(class(x), "real_2d", after = 0)
 
   return(x)
 
 }
 
 
-#' @export
-flag_periodicity.hic_int <- function(x, los_table = NULL) {
+flag_periodicity.integer_2d <- function(x, los_table = NULL) {
 
-  x %<>%
-    dplyr::filter(out_of_bounds == 0,
-                  range_error == 0,
-                  duplicate == 0) %>%
-    dplyr::select(episode_id, datetime) %>%
-    dplyr::group_by(episode_id) %>%
-    dplyr::summarise(count = n()) %>%
-    dplyr::left_join(los_table %>%
-                       dplyr::filter(validity == 0) %>%
-                       dplyr::select(episode_id, los),
-                     by = "episode_id") %>%
-    dplyr::mutate(periodicity = count/as.numeric(los)) %>%
-    dplyr::select(episode_id, periodicity) %>%
-    dplyr::right_join(x, by = "episode_id")
+  x <- flag_periodicity_numeric(x, los_table = los_table)
 
-  class(x) <- append(class(x), "hic_int", after = 0)
+  class(x) <- append(class(x), "integer_2d", after = 0)
 
   return(x)
 
 }
 
 
-#' @export
-flag_periodicity.hic_str <- function(x, los_table = NULL) {
+flag_periodicity.string_2d <- function(x, los_table = NULL) {
 
   x %<>%
     dplyr::filter(out_of_bounds == 0,
@@ -356,12 +621,8 @@ flag_periodicity.hic_str <- function(x, los_table = NULL) {
 
 ## label any value without a periodicity as suspicious
 
-  class(x) <- append(class(x), "hic_str", after = 0)
+  class(x) <- append(class(x), "string_2d", after = 0)
 
   return(x)
 
 }
-
-
-
-

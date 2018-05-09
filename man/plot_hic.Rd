@@ -4,14 +4,14 @@
 \alias{plot_hic}
 \title{Plot NHIC Events}
 \usage{
-plot_hic(x, input = NULL)
+plot_hic(x)
 }
 \arguments{
-\item{input}{the input variable of choice}
-
 \item{core_table}{core table}
 
 \item{valid_episodes}{an integer vector of episode IDs that have passed the validation process}
+
+\item{input}{the input variable of choice}
 
 \item{qref}{the quality reference table}
 }
