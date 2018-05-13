@@ -1,22 +1,27 @@
 #' Apply all validation flags to an extracted data item
 #'
-#' Applies validation flags to an extracted data item. This is a wrapper function with conditional
-#' logic to flag for:
+#' Applies basic validation flags to an extracted data item.
+#' This is a wrapper function with conditional logic to flag for:
 #' data item out of value range
 #' data item out of temporal range of the episode
 #' duplication of item
 #' periodicity
 #'
-#' periodicity checking is conditional on the preceding 3 flags, as ony those events that validate
-#' are taking into consideration of periodicity checking
+#' periodicity checking is conditional on the preceding 3 flags,
+#' as ony those events that validate are taking into consideration
+#' of periodicity checking
 #'
 #' @param x extracted data item
 #' @param los_table episode length table
 #'
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
+#'
 #' @return a tibble with flags applied
-#' @export
 #'
 #' @examples
+#' hr <- extract(core, input = "NIHR_HIC_ICU_0108)
+#' flag_all(hr, episode_length)
 flag_all <- function(x, los_table = NULL) {
 
   if (!(any(class(x) %in% preserved_classes))) {
@@ -31,6 +36,8 @@ flag_all <- function(x, los_table = NULL) {
   if (any(grepl("flag_range", avail_methods))) {
     rf <- x %>% flag_range()
   } else {
+
+    # Adds NAs as a column if this is not defined
     rf <- x %>%
       dplyr::mutate(range_error = NA) %>%
       dplyr::select(internal_id, range_error)
@@ -67,6 +74,7 @@ flag_all <- function(x, los_table = NULL) {
       dplyr::mutate(periodicity = NA)
   }
 
+  # class tidying up
   if (any(class(x) %in% preserved_classes)) {
 
     return(x)
@@ -95,16 +103,16 @@ flag_all <- function(x, los_table = NULL) {
 #' @return a tibble of the same length as x with the following features:
 #' \item{1}{event is a duplicate}
 #' \item{0}{event is not a duplicate}
+#'
 #' @export
 #'
 #'
 #' @examples
+#' flag_range(x)
 flag_range <- function(x) {
   UseMethod("flag_range", x)
 }
 
-
-#' @export
 flag_range.default <- function(...) {
 
   print("there are no methods for this class")
@@ -112,15 +120,29 @@ flag_range.default <- function(...) {
 }
 
 
-#' @export
-flag_range.real_2d <- function(x = NULL) {
+#' @param x
+#'
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
+flag_range_numeric <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
   x %<>%
     dplyr::left_join(qref, by = "code_name") %>%
-    dplyr::mutate(range_error = ifelse(value > range_max, 1L,
-                                       ifelse(value < range_min, -1L, 0L))) %>%
-    dplyr::select(internal_id, range_error)
+    dplyr::mutate(
+      range_error = ifelse(.data$value > .data$range_max, 1L,
+                    ifelse(.data$value < .data$range_min, -1L, 0L))) %>%
+    dplyr::select(.data$internal_id, .data$range_error)
+
+  return(x)
+
+}
+
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
+flag_range.real_2d <- function(x = NULL) {
+
+  x %<>% flag_range_numeric(x)
 
   class(x) <- append(class(x), "real_2d", after = 0)
 
@@ -129,15 +151,9 @@ flag_range.real_2d <- function(x = NULL) {
 }
 
 
-#' @export
 flag_range.real_1d <- function(x = NULL) {
 
-  # joins to the quality refernce table to identify range errors
-  x %<>%
-    dplyr::left_join(qref, by = "code_name") %>%
-    dplyr::mutate(range_error = ifelse(value > range_max, 1L,
-                                       ifelse(value < range_min, -1L, 0L))) %>%
-    dplyr::select(internal_id, range_error)
+  x %<>% flag_range_numeric(x)
 
   class(x) <- append(class(x), "real_1d", after = 0)
 
@@ -146,15 +162,9 @@ flag_range.real_1d <- function(x = NULL) {
 }
 
 
-#' @export
 flag_range.integer_2d <- function(x = NULL) {
 
-  # joins to the quality refernce table to identify range errors
-  x %<>%
-    dplyr::left_join(qref, by = "code_name") %>%
-    dplyr::mutate(range_error = ifelse(value > range_max, 1L,
-                                       ifelse(value < range_min, -1L, 0L))) %>%
-    dplyr::select(internal_id, range_error)
+  x %<>% flag_range_numeric(x)
 
   class(x) <- append(class(x), "integer_2d", after = 0)
 
@@ -163,15 +173,9 @@ flag_range.integer_2d <- function(x = NULL) {
 }
 
 
-#' @export
 flag_range.integer_1d <- function(x = NULL) {
 
-  # joins to the quality refernce table to identify range errors
-  x %<>%
-    dplyr::left_join(qref, by = "code_name") %>%
-    dplyr::mutate(range_error = ifelse(value > range_max, 1L,
-                                       ifelse(value < range_min, -1L, 0L))) %>%
-    dplyr::select(internal_id, range_error)
+  x %<>% flag_range_numeric(x)
 
   class(x) <- append(class(x), "integer_1d", after = 0)
 
@@ -180,7 +184,6 @@ flag_range.integer_1d <- function(x = NULL) {
 }
 
 
-#' @export
 flag_range.string_2d <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
@@ -195,7 +198,6 @@ flag_range.string_2d <- function(x = NULL) {
 }
 
 
-#' @export
 flag_range.string_1d <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
@@ -210,7 +212,6 @@ flag_range.string_1d <- function(x = NULL) {
 }
 
 
-#' @export
 flag_range.date_1d <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
@@ -226,7 +227,6 @@ flag_range.date_1d <- function(x = NULL) {
 }
 
 
-#' @export
 flag_range.datetime_1d <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors

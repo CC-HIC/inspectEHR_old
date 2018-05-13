@@ -11,6 +11,9 @@
 #' @importFrom magrittr %>%
 #'
 #' @return A tibble with 1 row per event
+#' @examples
+#' extract(core)
+#' extract(core, input = "NIHR_HIC_ICU_0557")
 extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 
   # ensure the core table is provided
@@ -23,7 +26,6 @@ extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
     dplyr::pull()
 
   # extract chosen input variable from the core table
-
   extracted_table <- dataitem %>%
     switch(integer_1d = extract_1d(core_table, input, data_location = "integer"),
            integer_2d = extract_2d(core_table, input, data_location = "integer"),
@@ -49,6 +51,7 @@ extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 #'
 #' @param core_table
 #' @param input
+#' @param data_location the column name that stores the primary data for this variable
 #'
 #' @return
 #' @export
