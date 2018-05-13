@@ -62,8 +62,8 @@ plot_heatcal <- function(episodes = NULL,
 find_first_sunday <- function(x) {
 
   first <- floor_date(x, "month")
-  dow = sapply(seq(0,6),function(x) wday(first+days(x)))
-  firstSunday = first + days(which(dow==1)-1)
+  dow <- vapply(seq(0,6),function(x) wday(first+days(x)))
+  firstSunday <- first + days(which(dow==1)-1)
   return(firstSunday)
 
 }
@@ -97,7 +97,7 @@ create_calendar <- function(x = NULL,
                     by = "year")) %>%
     mutate(
       firstSundays = as.Date(
-        sapply(years, find_first_sunday), origin = "1970/01/01"),
+        vapply(years, find_first_sunday), origin = "1970/01/01"),
     remaining_days = as.integer(firstSundays - years),
               year = year(years))
 

@@ -454,7 +454,7 @@ invalid_months <- function(episodes, provenance, threshold = 10) {
 #' @examples
 calc_site_occupancy <- function(episode_length_tbl = NULL, impute = TRUE) {
 
-  all_sites = c("Oxford", "RYJ", "GSTT", "UCL", "RGT")
+  all_sites <- c("Oxford", "RYJ", "GSTT", "UCL", "RGT")
 
   date_skelaton <- make_date_skelaton()
 

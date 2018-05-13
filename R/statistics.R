@@ -1,61 +1,61 @@
-df <- tibble(
- ucl = rnorm(n = 1000, mean = 90, sd = 8),
- imperial = rnorm(n = 1000, mean = 89, sd = 7.5),
- gstt = rnorm(n = 1000, mean = 100, sd = 9),
- cambridge = rnorm(n = 1000, mean = 91, sd = 8.1),
- oxford = rnorm(n = 1000, mean = 90.5, sd = 8.2)
-)
+# df <- tibble(
+#  ucl = rnorm(n = 1000, mean = 90, sd = 8),
+#  imperial = rnorm(n = 1000, mean = 89, sd = 7.5),
+#  gstt = rnorm(n = 1000, mean = 100, sd = 9),
+#  cambridge = rnorm(n = 1000, mean = 91, sd = 8.1),
+#  oxford = rnorm(n = 1000, mean = 90.5, sd = 8.2)
+# )
+#
+# df %<>%
+#   gather()
 
-ks_test <- function(x) {
+ks_test <- function(x, key, value) {
 
-  x %<>%
-    gather()
+  user_key <- enquo(key)
+  user_value <- enquo(value)
 
-  mm <- df %>%
-    distinct(key) %>%
-    pull %>%
+  sites <- x %>%
+    distinct(!!user_key) %>%
+    pull
+
+  site_pairs <- sites %>%
     combn(2)
 
-  ks_list <- vector(mode = "list", length = ncol(mm))
+  ks_list <- vector(mode = "list", length = ncol(site_pairs))
 
-  for (i in 1:ncol(mm)) {
-    ks_list[[i]] <- ks.test(x = df %>%
-                              filter(key == mm[,i][1]) %>%
-                              select(value) %>%
+  for (i in 1:ncol(site_pairs)) {
+    ks_list[[i]] <- ks.test(x = x %>%
+                              filter(!!user_key == site_pairs[,i][1]) %>%
+                              select(!!user_value) %>%
                               pull,
-                            y = df %>%
-                              filter(key == mm[,i][2]) %>%
-                              select(value) %>%
+                            y = x %>%
+                              filter(!!user_key == site_pairs[,i][2]) %>%
+                              select(!!user_value) %>%
                               pull)
   }
 
-  zz <- t(mm) %>%
+  site_pairs_t <- t(site_pairs) %>%
     as.tibble()
 
-  names(zz) <- c("site_a", "site_b")
+  names(site_pairs_t) <- c("site_a", "site_b")
 
-  zz %<>%
-    mutate(new_name = paste(site_a, site_b, sep = "-")) %>%
+  site_pairs_t %<>%
+    mutate(paired_name = paste(site_a, site_b, sep = "-")) %>%
     select(new_name) %>%
     pull
 
-  names(ks_list) <- zz
+  names(ks_list) <- site_pairs_t
 
-  ks_list
+  df <- map(ks_list, .f = tidy) %>%
+    bind_rows(.id = "source") %>%
+    separate(c("A", "B"), sep = "-")
 
-  df2 <- map(ks_list, .f = tidy) %>%
-    bind_rows(.id = "source")
-
-  df3 <- str_split_fixed(df2$source, pattern = "-", 2)
-
-  df4 <- cbind(df2, df3)
-
-  df4 %<>%
-    rename("Site_A" = "1",
-           "Site_B" = "2") %>%
-    arrange(Site_A, Site_B)
-
-
+  # df4 <- cbind(df2, df3)
+  #
+  # df4 %<>%
+  #   rename("Site_A" = "1",
+  #          "Site_B" = "2") %>%
+  #   arrange(Site_A, Site_B)
 
 
 }

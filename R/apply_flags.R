@@ -216,7 +216,7 @@ flag_range.date_1d <- function(x = NULL) {
   # joins to the quality refernce table to identify range errors
   x %<>%
     dplyr::mutate(range_error = if_else(value > Sys.Date(), 1L,
-                                        if_else(value < lubridate::dmy("01/01/1900"), -1L, 0))) %>%
+      if_else(value < lubridate::dmy("01/01/1900"), -1L, 0))) %>%
     dplyr::select(internal_id, range_error)
 
   class(x) <- append(class(x), "date_1d", after = 0)
@@ -232,7 +232,7 @@ flag_range.datetime_1d <- function(x = NULL) {
   # joins to the quality refernce table to identify range errors
   x %<>%
     dplyr::mutate(range_error = if_else(value > Sys.time(), 1L,
-                                        if_else(value < lubridate::dmy_hms("01/01/1900 00:00:00"), -1L, 0))) %>%
+      if_else(value < lubridate::dmy_hms("01/01/1900 00:00:00"), -1L, 0))) %>%
     dplyr::select(internal_id, range_error)
 
   class(x) <- append(class(x), "datetime_1d", after = 0)
@@ -277,14 +277,20 @@ flag_bounds.default <- function(...) {
 
 #' @export
 flag_bounds.real_2d <- function(x = NULL, los_table = NULL) {
-
   x %<>%
     left_join(los_table %>% select(-site), by = "episode_id") %>%
 
     # Applied -1 for before, 0 for within, +1 fpr after. NA if end date is missing
-    mutate(out_of_bounds = ifelse(difftime(datetime, epi_start_dttm, units = "days") < -2, -1L,
-                                  ifelse(difftime(datetime, epi_end_dttm, units = "days") > 2, 1L,
-                                         ifelse(is.na(epi_start_dttm) | is.na(epi_end_dttm), NA, 0L)))) %>%
+    mutate(out_of_bounds = ifelse(
+      difftime(datetime, epi_start_dttm, units = "days") < -2,
+      -1L,
+      ifelse(
+        difftime(datetime, epi_end_dttm, units = "days") > 2,
+        1L,
+        ifelse(is.na(epi_start_dttm) |
+                 is.na(epi_end_dttm), NA, 0L)
+      )
+    )) %>%
     select(internal_id, out_of_bounds)
 
   class(x) <- append(class(x), "real_2d", after = 0)
@@ -296,14 +302,20 @@ flag_bounds.real_2d <- function(x = NULL, los_table = NULL) {
 
 #' @export
 flag_bounds.integer_2d <- function(x = NULL, los_table = NULL) {
-
   x %<>%
     left_join(los_table %>% select(-site), by = "episode_id") %>%
 
     # Applied -1 for before, 0 for within, +1 fpr after. NA if end date is missing
-    mutate(out_of_bounds = ifelse(difftime(datetime, epi_start_dttm, units = "days") < -2, -1L,
-                                  ifelse(difftime(datetime, epi_end_dttm, units = "days") > 2, 1L,
-                                         ifelse(is.na(epi_start_dttm) | is.na(epi_end_dttm), NA, 0L)))) %>%
+    mutate(out_of_bounds = ifelse(
+      difftime(datetime, epi_start_dttm, units = "days") < -2,
+      -1L,
+      ifelse(
+        difftime(datetime, epi_end_dttm, units = "days") > 2,
+        1L,
+        ifelse(is.na(epi_start_dttm) |
+                 is.na(epi_end_dttm), NA, 0L)
+      )
+    )) %>%
     select(internal_id, out_of_bounds)
 
   class(x) <- append(class(x), "integer_2d", after = 0)
@@ -315,13 +327,19 @@ flag_bounds.integer_2d <- function(x = NULL, los_table = NULL) {
 
 #' @export
 flag_bounds.string_2d <- function(x = NULL, los_table = NULL) {
-
-    x %<>%
-      left_join(los_table %>% select(-site), by = "episode_id") %>%
-      # Applied -1 for before, 0 for within, +1 fpr after. NA if end date is missing
-      mutate(out_of_bounds = ifelse(difftime(datetime, epi_start_dttm, units = "days") < -2, -1L,
-                                  ifelse(difftime(datetime, epi_end_dttm, units = "days") > 2, 1L,
-                                         ifelse(is.na(epi_start_dttm) | is.na(epi_end_dttm), NA, 0L)))) %>%
+  x %<>%
+    left_join(los_table %>% select(-site), by = "episode_id") %>%
+    # Applied -1 for before, 0 for within, +1 fpr after. NA if end date is missing
+    mutate(out_of_bounds = ifelse(
+      difftime(datetime, epi_start_dttm, units = "days") < -2,
+      -1L,
+      ifelse(
+        difftime(datetime, epi_end_dttm, units = "days") > 2,
+        1L,
+        ifelse(is.na(epi_start_dttm) |
+                 is.na(epi_end_dttm), NA, 0L)
+      )
+    )) %>%
 
     select(internal_id, out_of_bounds)
 
