@@ -12,7 +12,7 @@ extract(core_table = NULL, input = "NIHR_HIC_ICU_0557")
 \item{input}{the input variable of choice}
 }
 \value{
-A tibble 1 row per event
+A tibble with 1 row per event
 }
 \description{
 Extracts NHIC events and appends them with the correct class for
