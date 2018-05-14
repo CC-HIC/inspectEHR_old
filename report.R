@@ -52,6 +52,16 @@ error_grid <- error_summary %>%
 
 ggsave(error_grid, filename = paste0(path_name, "plots/error_grid.png"))
 
+## Missing fields
+# we want to identify fields that are entirely uncontributed by site
+
+unique_events <- tbls[["events"]] %>%
+  select(code_name) %>%
+  distinct() %>%
+  pull
+
+missing_events <- base::setdiff(hic_codes, unique_events)
+
 ## Reference Table
 ## Left join is used here because we don't want to drag around NAs from empty files
 reference <- make_reference(episodes, provenance)
@@ -169,16 +179,21 @@ invalid_months <- invalid_months(episodes, provenance)
 # Takes a really long time
 # occupancy <- calc_site_occupancy(episode_length_tbl = episode_length)
 
+
+exported_hr <- extract(core, input = "NIHR_HIC_ICU_0108")
+
+flagged_hr <- flag_all(exported_hr, episode_length)
+
+sum_hr <- summary(flagged_hr)
+
+sum_hr
+
+
 ###############
 # Doubles =====
 ###############
 
-qref %>%
-  select(code_name, datatype) %>%
-  distinct(code_name, .keep_all = TRUE) %>%
-  filter(datatype == "hic_dbl") %>%
-  select(code_name) %>%
-  pull -> all_dbls
+
 
 # Set up doubles
 hic_dbls <- vector(mode = "list", length = length(all_dbls))

@@ -107,10 +107,9 @@ flag_all <- function(x, los_table = NULL) {
 #'
 #' @export
 #'
-#'
 #' @examples
 #' flag_range(x)
-flag_range <- function(x) {
+flag_range <- function(x = NULL) {
   UseMethod("flag_range", x)
 }
 
@@ -143,7 +142,7 @@ flag_range_numeric <- function(x = NULL) {
 #' @importFrom rlang .data !!
 flag_range.real_2d <- function(x = NULL) {
 
-  x %<>% flag_range_numeric(x)
+  x %<>% flag_range_numeric()
 
   class(x) <- append(class(x), "real_2d", after = 0)
 
@@ -154,7 +153,7 @@ flag_range.real_2d <- function(x = NULL) {
 
 flag_range.real_1d <- function(x = NULL) {
 
-  x %<>% flag_range_numeric(x)
+  x %<>% flag_range_numeric()
 
   class(x) <- append(class(x), "real_1d", after = 0)
 
@@ -165,7 +164,7 @@ flag_range.real_1d <- function(x = NULL) {
 
 flag_range.integer_2d <- function(x = NULL) {
 
-  x %<>% flag_range_numeric(x)
+  x %<>% flag_range_numeric()
 
   class(x) <- append(class(x), "integer_2d", after = 0)
 
@@ -176,7 +175,7 @@ flag_range.integer_2d <- function(x = NULL) {
 
 flag_range.integer_1d <- function(x = NULL) {
 
-  x %<>% flag_range_numeric(x)
+  x %<>% flag_range_numeric()
 
   class(x) <- append(class(x), "integer_1d", after = 0)
 
@@ -395,7 +394,7 @@ flag_duplicate_2d <- function(x = NULL) {
 
 flag_duplicate.real_2d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_2d(x)
+  x %<>% flag_duplicate_2d()
 
   class(x) <- append(class(x), "real_2d", after = 0)
 
@@ -406,7 +405,7 @@ flag_duplicate.real_2d <- function(x = NULL) {
 
 flag_duplicate.integer_2d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_2d(x)
+  x %<>% flag_duplicate_2d()
 
   class(x) <- append(class(x), "integer_2d", after = 0)
 
@@ -417,7 +416,7 @@ flag_duplicate.integer_2d <- function(x = NULL) {
 
 flag_duplicate.string_2d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_2d(x)
+  x %<>% flag_duplicate_2d()
 
   class(x) <- append(class(x), "string_2d", after = 0)
 
@@ -448,7 +447,7 @@ flag_duplicate_1d <- function(x = NULL) {
 #' @export
 flag_duplicate.real_1d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_1d(x)
+  x %<>% flag_duplicate_1d()
 
   class(x) <- append(class(x), "real_1d", after = 0)
 
@@ -460,7 +459,7 @@ flag_duplicate.real_1d <- function(x = NULL) {
 #' @export
 flag_duplicate.integer_1d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_1d(x)
+  x %<>% flag_duplicate_1d()
 
   class(x) <- append(class(x), "integer_1d", after = 0)
 
@@ -474,7 +473,7 @@ flag_duplicate.integer_1d <- function(x = NULL) {
 #' @export
 flag_duplicate.string_1d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_1d(x)
+  x %<>% flag_duplicate_1d()
 
   class(x) <- append(class(x), "string_1d", after = 0)
 
@@ -486,7 +485,7 @@ flag_duplicate.string_1d <- function(x = NULL) {
 #' @export
 flag_duplicate.datetime_1d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_1d(x)
+  x %<>% flag_duplicate_1d()
 
   class(x) <- append(class(x), "datetime_1d", after = 0)
 
@@ -498,7 +497,7 @@ flag_duplicate.datetime_1d <- function(x = NULL) {
 #' @export
 flag_duplicate.date_1d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_1d(x)
+  x %<>% flag_duplicate_1d()
 
   class(x) <- append(class(x), "date_1d", after = 0)
 
@@ -510,7 +509,7 @@ flag_duplicate.date_1d <- function(x = NULL) {
 #' @export
 flag_duplicate.time_1d <- function(x = NULL) {
 
-  x %<>% flag_duplicate_1d(x)
+  x %<>% flag_duplicate_1d()
 
   class(x) <- append(class(x), "time_1d", after = 0)
 
@@ -530,7 +529,6 @@ flag_duplicate.time_1d <- function(x = NULL) {
 #' Periodicity is given as event count per los unit. The default behaviour will be events/day.
 #'
 #' @param x
-#' @param ...
 #'
 #' @return
 #' @export
@@ -548,31 +546,43 @@ flag_periodicity.default <- function(x) {
 }
 
 
+#' Flag periodicity of 2d class
+#'
+#' @param x data item
+#' @param los_table episode length table
+#'
+#' @return
+#' @export
+#'
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data
+#'
+#' @examples
 flag_periodicity_numeric <- function(x, los_table = NULL) {
 
   x %<>%
 
     # filter out values that cannot be taken into consideration for this calculation
-    dplyr::filter(out_of_bounds == 0,
-                  range_error == 0,
-                  duplicate == 0) %>%
+    dplyr::filter(.data$out_of_bounds == 0,
+                  .data$range_error == 0,
+                  .data$duplicate == 0) %>%
 
     # only need 1 value of interest to track periodicity (we'll choose datetime)
-    dplyr::select(episode_id, datetime) %>%
-    dplyr::group_by(episode_id) %>%
+    dplyr::select(.data$episode_id, .data$datetime) %>%
+    dplyr::group_by(.data$episode_id) %>%
 
     # count the number of events occurring
     dplyr::summarise(count = n()) %>%
     dplyr::left_join(los_table %>%
 
                        # only checking validated episodes
-                       dplyr::filter(validity == 0) %>%
-                       dplyr::select(episode_id, los),
+                       dplyr::filter(.data$validity == 0) %>%
+                       dplyr::select(.data$episode_id, .data$los),
                      by = "episode_id") %>%
 
     # calculate the periodicity
     dplyr::mutate(periodicity = count/as.numeric(los)) %>%
-    dplyr::select(episode_id, periodicity) %>%
+    dplyr::select(.data$episode_id, .data$periodicity) %>%
 
     # right join back into the original object
     # this will produce NAs on the following conditions: invalid LOS or no usable values
@@ -609,17 +619,20 @@ flag_periodicity.integer_2d <- function(x, los_table = NULL) {
 flag_periodicity.string_2d <- function(x, los_table = NULL) {
 
   x %<>%
-    dplyr::filter(out_of_bounds == 0,
-                  range_error == 0,
-                  duplicate == 0) %>%
-    dplyr::group_by(episode_id) %>%
+    dplyr::filter(.data$out_of_bounds == 0,
+                  .data$range_error == 0,
+                  .data$duplicate == 0) %>%
+    dplyr::group_by(.data$episode_id) %>%
     dplyr::summarise(events = n()) %>%
     dplyr::left_join(los_table, by = "episode_id") %>%
     dplyr::mutate(periodicity = events/(as.numeric(los)*24)) %>%
-    dplyr::select(episode_id, events, periodicity, epi_start_dttm) %>%
+    dplyr::select(.data$episode_id,
+                  .data$events,
+                  .data$periodicity,
+                  .data$epi_start_dttm) %>%
     dplyr::right_join(x, by = "episode_id")
 
-## label any value without a periodicity as suspicious
+  ## label any value without a periodicity as suspicious
 
   class(x) <- append(class(x), "string_2d", after = 0)
 

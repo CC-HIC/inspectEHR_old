@@ -19,3 +19,7 @@ Extracts NHIC events and appends them with the correct class for
 further processing. This is essentially the creator method for
 the S3 classes associated with the inspectEHR package
 }
+\examples{
+extract(core)
+extract(core, input = "NIHR_HIC_ICU_0557")
+}

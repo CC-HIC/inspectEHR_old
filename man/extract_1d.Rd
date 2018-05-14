@@ -7,7 +7,7 @@
 extract_1d(core_table = NULL, input = NULL, data_location = NULL)
 }
 \arguments{
-\item{input}{}
+\item{data_location}{the column name that stores the primary data for this variable}
 }
 \description{
 This function extracts the correct column from the CC-HIC database

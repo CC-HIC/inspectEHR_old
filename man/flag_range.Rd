@@ -4,7 +4,7 @@
 \alias{flag_range}
 \title{Flag Events by Reference Range (S3 Generic)}
 \usage{
-flag_range(x)
+flag_range(x = NULL)
 }
 \arguments{
 \item{x}{an extracted event table}
@@ -18,5 +18,9 @@ a tibble of the same length as x with the following features:
 }
 \description{
 S3 generic
-Flags each event as being in range (0), out of range high (+1) or out of range low (-1)
+Flags each event as being in range (0), out of range high (+1) or
+out of range low (-1)
+}
+\examples{
+flag_range(x)
 }

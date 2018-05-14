@@ -15,14 +15,15 @@ flag_all(x, los_table = NULL)
 a tibble with flags applied
 }
 \description{
-Applies validation flags to an extracted data item. This is a wrapper function with conditional
-logic to flag for:
+Applies basic validation flags to an extracted data item.
+This is a wrapper function with conditional logic to flag for:
 data item out of value range
 data item out of temporal range of the episode
 duplication of item
 periodicity
 }
 \details{
-periodicity checking is conditional on the preceding 3 flags, as ony those events that validate
-are taking into consideration of periodicity checking
+periodicity checking is conditional on the preceding 3 flags,
+as ony those events that validate are taking into consideration
+of periodicity checking
 }

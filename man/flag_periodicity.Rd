@@ -7,7 +7,7 @@
 flag_periodicity(x, los_table = NULL)
 }
 \arguments{
-\item{...}{}
+\item{x}{}
 }
 \description{
 Takes a data item tibble that has been pre-flagged with range, boundary and duplicate errors

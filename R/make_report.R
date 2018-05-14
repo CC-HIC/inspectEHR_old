@@ -48,6 +48,16 @@ make_report <- function(database = "lenient_dev",
   ggsave(error_grid, filename = paste0(path_name, "plots/error_grid.png"))
   rm(error_grid)
 
+  ## Missing fields
+  # we want to identify fields that are entirely uncontributed by site
+
+  unique_events <- tbls[["events"]] %>%
+    select(code_name) %>%
+    distinct() %>%
+    pull
+
+  missing_events <- base::setdiff(hic_codes, unique_events)
+
   # Reference Table
   # Left join is used here because we don't want to drag around NAs from empty files
   reference <- make_reference(episodes, provenance)

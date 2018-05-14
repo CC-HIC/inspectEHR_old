@@ -19,7 +19,8 @@ a tibble of the same length as x with the following values
 \item{NA}{Foundation elements were not availible and so this parameter could not be calculated}
 }
 \description{
-If the event of concern is a string, since only Airway and Organism are time varying string fields
+If the event of concern is a string, since only Airway and Organism are time
+varying string fields
 the behavior on hic_str differs.
 }
 \examples{
