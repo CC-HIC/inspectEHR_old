@@ -41,3 +41,6 @@ vignettes/*.pdf
 
 # System files
 *.DS_Store
+
+# development folder
+/dev/
