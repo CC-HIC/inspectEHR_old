@@ -7,17 +7,11 @@
 plot_hic(x)
 }
 \arguments{
-\item{core_table}{core table}
-
-\item{valid_episodes}{an integer vector of episode IDs that have passed the validation process}
-
-\item{input}{the input variable of choice}
-
-\item{qref}{the quality reference table}
+\item{x}{flagged table}
 }
 \value{
 A tibble 1 row per event
 }
 \description{
-Plots NHIC events by a pre-determined plot
+Plots NHIC events in a predetermined way and output to the plot folder specified
 }

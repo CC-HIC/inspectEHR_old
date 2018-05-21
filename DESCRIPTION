@@ -21,7 +21,8 @@ Imports:
     lubridate,
     dbplyr,
     magrittr,
-    broom
+    broom,
+    tibble
 RoxygenNote: 6.0.1
 Suggests:
     knitr,

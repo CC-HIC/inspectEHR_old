@@ -43,12 +43,13 @@ retrieve_unique_cases <- function(episodes = NULL, provenance = NULL) {
 report_cases_all <- function(unique_cases_tbl = NULL) {
 
   cases <- unique_cases_tbl %>%
-    mutate(year = year(start_date),
-           month = month(start_date, label = TRUE),
-           week_of_month = as.integer(ceiling(day(start_date)/7)),
-           wday = wday(start_date, label = TRUE)) %>%
-    group_by(site, year, month, week_of_month) %>%
-    summarise(patients = n_distinct(nhs_number),
+    dplyr::mutate(
+      year = lubridate::year(start_date),
+     month = lubridate::month(start_date, label = TRUE),
+    week_of_month = as.integer(ceiling(lubridate::day(start_date)/7)),
+           wday = lubridate::wday(start_date, label = TRUE)) %>%
+    dplyr::group_by(site, year, month, week_of_month) %>%
+    dplyr::summarise(patients = n_distinct(nhs_number),
               episodes = n_distinct(episode_id))
 
   return(cases)
@@ -67,10 +68,10 @@ report_cases_all <- function(unique_cases_tbl = NULL) {
 report_cases_daily <- function(unique_cases_tbl = NULL) {
 
   cases <- unique_cases_tbl %>%
-    mutate(year = year(start_date),
-           month = month(start_date, label = TRUE),
-           week_of_month = as.integer(ceiling(day(start_date)/7)),
-           wday = wday(start_date, label = TRUE)) %>%
+    mutate(year = lubridate::year(start_date),
+           month = lubridate::month(start_date, label = TRUE),
+           week_of_month = as.integer(ceiling(lubridate::day(start_date)/7)),
+           wday = lubridate::wday(start_date, label = TRUE)) %>%
     group_by(site, year, month, week_of_month, wday) %>%
     summarise(patients = n_distinct(nhs_number),
               episodes = n_distinct(episode_id))
@@ -259,8 +260,9 @@ unit_discharge_status <- function(event_table) {
 #' @param core_table core table from \code{make_core()}
 #'
 #' @return a tibble with mandatory episode defining characteristics.
-
 #' @export
+#'
+#' @importFrom lubridate is.POSIXct ymd_hms
 #'
 #' @examples
 #' epi_end_alive(core)

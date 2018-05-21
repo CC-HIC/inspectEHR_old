@@ -28,6 +28,9 @@ flag_all <- function(x, los_table = NULL) {
     stop("this function is not defined for this class")
   }
 
+  # capture input name
+  input_name <- attr(x, "code_name")
+
   # check the availible methods for this class
   avail_methods <- methods(class = class(x)[1])
   event_class <- class(x)[1]
@@ -73,6 +76,8 @@ flag_all <- function(x, los_table = NULL) {
     x %<>%
       dplyr::mutate(periodicity = NA)
   }
+
+  attr(x, "code_name") <- input_name
 
   # class tidying up
   if (any(class(x) %in% preserved_classes)) {

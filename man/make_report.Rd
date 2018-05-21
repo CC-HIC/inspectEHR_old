@@ -5,7 +5,7 @@
 \title{Make HIC Report Data}
 \usage{
 make_report(database = "lenient_dev", username = "edward",
-  path_name = NULL, useDeath = TRUE)
+  password = "superdb", path_name = NULL, useDeath = TRUE)
 }
 \arguments{
 \item{path_name}{}

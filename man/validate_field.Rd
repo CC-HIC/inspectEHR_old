@@ -5,7 +5,7 @@
 \title{Validate HIC Field}
 \usage{
 validate_field(core_table = NULL, reference_table = NULL,
-  input_field = NULL, qref = NULL, los_table = NULL)
+  input_field = NULL, los_table = NULL)
 }
 \arguments{
 \item{core_table}{core table}
@@ -13,8 +13,6 @@ validate_field(core_table = NULL, reference_table = NULL,
 \item{reference_table}{reference table}
 
 \item{input_field}{character vecotr of input field}
-
-\item{qref}{quality reference table}
 
 \item{los_table}{episode length table}
 }

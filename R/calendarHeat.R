@@ -8,6 +8,7 @@
 #' @return a plot with admission details in heatmap form
 #' @export
 #'
+#'
 #' @examples
 #' plot_heatcal(episodes, provenance, "UCL")
 #' plot_heatcal(episodes, provenance, "UCL, "~/some/path/plot.png")
@@ -58,11 +59,13 @@ plot_heatcal <- function(episodes = NULL,
 #' @return a vector with dates for the first sunday of each year supplied to x
 #' @export
 #'
+#' @importFrom lubridate floor_date wday days
+#'
 #' @examples
 find_first_sunday <- function(x) {
 
   first <- floor_date(x, "month")
-  dow <- vapply(seq(0,6),function(x) wday(first+days(x)))
+  dow <- sapply(seq(0,6),function(x) wday(first+days(x)))
   firstSunday <- first + days(which(dow==1)-1)
   return(firstSunday)
 
@@ -79,6 +82,8 @@ find_first_sunday <- function(x) {
 #'
 #' @return a tibble with correct week alignments for a calendar heatmap
 #' @export
+#'
+#' @importFrom lubridate floor_date ceiling_date ymd year month
 #'
 #' @examples
 #' sample_data <- create_calendar(myData, "2014-01-01", "2018-01-01")
@@ -97,7 +102,7 @@ create_calendar <- function(x = NULL,
                     by = "year")) %>%
     mutate(
       firstSundays = as.Date(
-        vapply(years, find_first_sunday), origin = "1970/01/01"),
+        sapply(years, find_first_sunday), origin = "1970/01/01"),
     remaining_days = as.integer(firstSundays - years),
               year = year(years))
 

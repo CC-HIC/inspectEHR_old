@@ -39,6 +39,8 @@ extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 
   class(extracted_table) <- append(class(extracted_table), dataitem, after = 0)
 
+  attr(extracted_table, "code_name") <- input
+
   return(extracted_table)
 
 }

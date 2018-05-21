@@ -5,6 +5,8 @@
 ## The typical flow is:
 ## Extract > Flag > Summary > Plot
 
+## Validate wraps this process
+
 ## Load Required Packages
 
 library(tidyverse)
