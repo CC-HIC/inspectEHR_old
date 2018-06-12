@@ -3,7 +3,7 @@
 #' This is the main function for processing data from CC-HIC. It wraps all alther functions to evaluate
 #' the whole database in one sweep.
 #'
-#' When running this function you should make the following folder heirachy availible:
+#' When running this function, path_name should be made availible with the following folders:
 #' plots
 #' working_data
 #'
@@ -12,6 +12,8 @@
 #' @param database
 #' @param username
 #' @param path_name
+#'
+#' @importFrom dplyr select arrange pull
 #'
 #' @return
 #' @export
@@ -22,6 +24,12 @@ make_report <- function(database = "lenient_dev",
                         password = "superdb",
                        path_name = NULL,
                         useDeath = TRUE) {
+
+
+  # Folder set up
+  if(!dir.exists(paste0(path_name, "plots"))) dir.create(paste0(path_name, "plots"))
+  if(!dir.exists(paste0(path_name, "working_data"))) dir.create(paste0(path_name, "working_data"))
+  if(!dir.exists(paste0(path_name, "validation_data"))) dir.create(paste0(path_name, "validation_data"))
 
   cat("Starting Set-Up")
 
@@ -43,26 +51,26 @@ make_report <- function(database = "lenient_dev",
   episodes <- collect(tbls[["episodes"]])
   provenance <- collect(tbls[["provenance"]])
   metadata <- collect(tbls[["variables"]])
-  errors <- collect(tbls[["errors"]])
+  # errors <- collect(tbls[["errors"]])
 
   setTxtProgressBar(pb, 2)
 
   # XML level errors
-  xml_stats <- xml_stats(importstats = tbls[["importstats"]])
-  empty_files <- empty_files(episodes, provenance)
-  non_parsed <- non_parsed_files(provenance)
-  error_summary <- error_summary(errors, provenance)
+  # xml_stats <- xml_stats(importstats = tbls[["importstats"]])
+  # empty_files <- empty_files(episodes, provenance)
+  # non_parsed <- non_parsed_files(provenance)
+  # error_summary <- error_summary(errors, provenance)
 
   setTxtProgressBar(pb, 3)
 
-  error_grid <- error_summary %>%
-    ggplot(aes(x = site, y = message_type, fill = count)) +
-    geom_tile() +
-    geom_text(aes(label = count), colour = "white") +
-    theme_minimal()
-
-  ggsave(error_grid, filename = paste0(path_name, "plots/error_grid.png"))
-  rm(error_grid)
+  # error_grid <- error_summary %>%
+  #   ggplot(aes(x = site, y = message_type, fill = count)) +
+  #   geom_tile() +
+  #   geom_text(aes(label = count), colour = "white") +
+  #   theme_minimal()
+  #
+  # ggsave(error_grid, filename = paste0(path_name, "plots/error_grid.png"))
+  # rm(error_grid)
 
   ## Missing fields
   # we want to identify fields that are entirely uncontributed by site
@@ -78,7 +86,7 @@ make_report <- function(database = "lenient_dev",
 
   unique_events_plot <- unique_events %>%
     ggplot(aes(x = site, y = code_name)) +
-    geom_tile(fill = "green") +
+    geom_tile(fill = "blue") +
     theme_minimal() +
     scale_y_discrete(labels = hic_codes)
 
@@ -89,7 +97,10 @@ make_report <- function(database = "lenient_dev",
     plot = unique_events_plot,
     height = 40)
 
-  missing_events <- base::setdiff(hic_codes, unique_events)
+  missing_events <- base::setdiff(hic_codes, unique_events %>%
+                                    select(code_name) %>%
+                                    pull() %>%
+                                    unique())
 
   setTxtProgressBar(pb, 5)
 
@@ -98,6 +109,11 @@ make_report <- function(database = "lenient_dev",
   reference <- make_reference(episodes, provenance)
 
   all_sites <- reference %>% select(site) %>% distinct %>% pull
+
+  ## Capture colour profile for consistency
+
+  all_sites.col <- c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3", "#A6D854")
+  names(all_sites.col)  <- all_sites
 
   # Core Table ----
   core <- make_core(tbls[["events"]], tbls[["episodes"]], tbls[["provenance"]])
@@ -120,7 +136,8 @@ make_report <- function(database = "lenient_dev",
       path_name,
       "plots/",
       all_sites[i],
-      "_admissions.png"))
+      "_admissions.png"),
+      dpi = 300, width = 10, height = 7, units = "in")
   }
 
   setTxtProgressBar(pb, 8)
@@ -148,7 +165,11 @@ make_report <- function(database = "lenient_dev",
   # Episode validity long term average
   # typical_admissions gives me the mean and sd for the long running admissions by wday
 
-  invalid_months <- invalid_months(episodes, provenance)
+  invalid_months <- invalid_months(episodes, provenance, all_sites = all_sites)
+
+  validated_episodes <- validate_episode(episode_length_tbl = episode_length, invalidated_months = invalid_months)
+
+  save(validated_episodes, file = paste0(path_name, "validation_data/validated_episodes.RData"))
 
   setTxtProgressBar(pb, 10)
 
@@ -165,8 +186,11 @@ make_report <- function(database = "lenient_dev",
   ###############
 
   # Set up events
-  hic_events <- vector(mode = "list", length = length(hic_codes))
-  names(hic_events) <- hic_codes
+  hic_event_summary <- vector(mode = "list", length = length(hic_codes))
+  names(hic_event_summary) <- hic_codes
+
+  hic_event_validation <- vector(mode = "list", length = length(hic_codes))
+  names(hic_event_validation) <- hic_codes
 
   # create progress bar
   cat("Starting Event Level Evaluation")
@@ -180,10 +204,12 @@ make_report <- function(database = "lenient_dev",
       flag_all(episode_length)
 
     # Plotting
-    plot_hic(temp_df)
+    plot_hic(temp_df, path_name)
 
     #Saving errors outside the main list
-    hic_events[[hic_codes[i]]] <- summary(temp_df)
+    hic_event_summary[[hic_codes[i]]] <- summary_main(temp_df)
+
+    hic_event_validation[[hic_codes[i]]] <- validate_event(validated_episodes, temp_df)
 
     rm(temp_df)
 

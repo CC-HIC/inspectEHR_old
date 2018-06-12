@@ -4,7 +4,7 @@
 \alias{error_summary}
 \title{Summarise Event Level Errors}
 \usage{
-error_summary(errors = NULL, provenance = NULL)
+error_summary(xml_validation)
 }
 \arguments{
 \item{errors}{error table}
@@ -20,5 +20,5 @@ This is for overview purposes, so scope out the magnitude of problems and help
 direct xml fixes
 }
 \examples{
-error_summary(errors, provenance)
+error_summary(xml_validation)
 }

@@ -7,8 +7,16 @@
 flag_bounds_2d(x = NULL, los_table = NULL)
 }
 \arguments{
-\item{los_table}{}
+\item{x}{an extracted nhic event table}
+
+\item{los_table}{episode length table}
+}
+\value{
+a two column tibble with internal id and duplication status
 }
 \description{
-Flag boundaries of 2d data items
+Sets boundary conditions for events in relation to episodes
+}
+\examples{
+flag_bounds_2d(x, los_table)
 }

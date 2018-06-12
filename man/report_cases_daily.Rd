@@ -9,6 +9,12 @@ report_cases_daily(unique_cases_tbl = NULL)
 \arguments{
 \item{unique_cases_tbl}{from \code{pull_cases_all}}
 }
+\value{
+breakdown of unique daily cases
+}
 \description{
 Reports Case Numbers according to day
+}
+\examples{
+report_cases_daily(unique_cases)
 }

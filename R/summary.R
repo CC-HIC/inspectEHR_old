@@ -1,9 +1,3 @@
-#' @export
-summary <- function(x = NULL) {
-  UseMethod("summary", x)
-}
-
-
 #' Summary for flagged data item
 #'
 #' @param x
@@ -15,117 +9,88 @@ summary <- function(x = NULL) {
 #' @importFrom rlang .data
 #'
 #' @examples
+#' summary(x)
 summary_main <- function(x) {
+
+  dl <- vector(mode = "list", length = 2)
+  names(dl) <- c("error_checks", "missingness")
 
   bounds <- x %>%
     group_by(.data$site) %>%
     summarise(
       early_event = sum(
-        ifelse(.data$out_of_bounds == -1, 1L, 0L)),
+        ifelse(.data$out_of_bounds == -1, 1L, 0L), na.rm = TRUE),
       late_event = sum(
-        ifelse(.data$out_of_bounds == 1, 1L, 0L)))
+        ifelse(.data$out_of_bounds == 1, 1L, 0L), na.rm = TRUE))
 
   range <- x %>%
     group_by(.data$site) %>%
     summarise(
       low_value = sum(
-        ifelse(.data$range_error == -1, 1L, 0L)),
+        ifelse(.data$range_error == -1, 1L, 0L), na.rm = TRUE),
       high_value = sum(
-        ifelse(.data$range_error == 1, 1L, 0L)))
+        ifelse(.data$range_error == 1, 1L, 0L), na.rm = TRUE))
 
   dup <- x %>%
     group_by(.data$site) %>%
     summarise(
       duplicate_events = sum(
-        ifelse(.data$duplicate == 1, 1L, 0L)))
+        ifelse(.data$duplicate == 1, 1L, 0L), na.rm = TRUE))
 
-  df <- bounds %>%
+  dl[["error_checks"]] <- bounds %>%
     full_join(range, by = "site") %>%
     full_join(dup, by = "site") %>%
     gather("error_type", "n", -.data$site)
 
-  return(df)
+  if (any(grepl("1d", class(x)))) {
+
+    dl[["missingness"]] <- x %>%
+      missingness()
+
+  } else {
+
+    dl[["missingness"]] <- NA
+
+  }
+
+  return(dl)
 
 }
 
 
-summary.real_2d <- function(x) {
+#' Check for 1d Missingness
+#'
+#' @param x
+#'
+#' @return a tibble with the following columns:
+#' \describe{
+#'   \item{event}{name of the CC-HIC event}
+#'   \item{site}{name of the BRC from which the event originates}
+#'   \item{count}{total count of validated events recieved}
+#'   \item{total}{total popululation}
+#'   \item{missingness}{1 - count/total}
+#' }
+#' @export
+#'
+#' @importFrom rlang !! .data
+#' @importFrom dplyr filter group_by summarise
+#'
+#' @examples
+#' missingness(df)
+missingness <- function(x) {
 
-  x %<>% summary_main()
+  x <- x %>%
+    dplyr::filter(.data$range_error == 0 | is.na(.data$range_error),
+                  .data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+                  .data$duplicate == 0 | is.na(.data$duplicate)) %>%
+    dplyr::group_by(.data$code_name, .data$site) %>%
+    dplyr::summarise(count = n()) %>%
+    dplyr::left_join(reference %>%
+                       group_by(site) %>%
+                       summarise(total = n()), by = "site") %>%
+    mutate(missingness = 1 - count/total)
 
   return(x)
 
 }
 
-
-summary.integer_2d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}
-
-
-summary.string_2d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}
-
-
-summary.real_1d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}
-
-
-summary.integer_1d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}
-
-
-summary.string_1d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}
-
-
-summary.time_1d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}
-
-
-summary.date_1d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}
-
-
-
-summary.datetime_1d <- function(x) {
-
-  x %<>% summary_main()
-
-  return(x)
-
-}

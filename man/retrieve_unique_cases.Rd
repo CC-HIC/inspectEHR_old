@@ -7,7 +7,9 @@
 retrieve_unique_cases(episodes = NULL, provenance = NULL)
 }
 \arguments{
-\item{provenance}{}
+\item{episodes}{episode table}
+
+\item{provenance}{provenance table}
 }
 \value{
 a tibble with fields for site, nhs_number, episode_id and start
@@ -17,4 +19,7 @@ Pulls unique record numbers from the CC-HIC database. This requires only that an
 been correctly parsed from the xml and added to the database and so doesn't rely on, or infer that
 there is any, event level data. This is the most accurate measure of the actual number of "patients"
 in the system.
+}
+\examples{
+retrieve_unique_cases(episodes, provenance)
 }

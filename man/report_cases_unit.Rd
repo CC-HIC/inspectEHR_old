@@ -11,9 +11,15 @@ report_cases_unit(events_table = NULL, reference_table = NULL)
 
 \item{reference_table}{the reference table}
 }
+\value{
+a tibble with unique episodes and patients reported by ICU
+}
 \description{
 Reports on ICNARC CMP unit codes to describe the numbers of reported cases by site.
 This is dependent on accurate parsing of the xml schema for hic code 0002 (INCARC CMP
 unit code). And as such, may dramatically under-report. To see a comprehensive list
 of acual cases, see the \code{pull_unique_cases()} function.
+}
+\examples{
+report_cases_unit(events, reference)
 }

@@ -23,53 +23,38 @@ xml_stats <- function(importstats) {
 }
 
 
-#' Show Non Parsed XML
+
+#' Checks validation for XML files and returns a summary
 #'
-#' Returns a character vector of file names for XML that would not be parsed
+#' @param xml_file the xml file you wish to validate
+#' @param schema the xml schema against which you are validating
 #'
-#' @param provenance provenance table - containing details of what was parsed
-#'
-#' @return a character vector of filenames
+#' @return a character vector of linting errors
 #' @export
 #'
-#' @examples
-#' non_pased_files(provenance)
-non_parsed_files <- function(provenance = NULL) {
-
-  position_slash <- dir(path = "S:/NIHR_HIC/current_xml/", recursive = TRUE) %>%
-    str_locate("/")
-
-  position_slash <- position_slash[,"start"]
-
-  xml_files <- dir(path = "S:/NIHR_HIC/current_xml/", recursive = TRUE) %>%
-    str_sub(start = position_slash)
-
-  xml_files <- paste0("/data", xml_files)
-
-  xml_files <- str_replace(xml_files, " ", "_")
-
-  return(xml_files[!(xml_files %in% (provenance %>% select(filename) %>% pull))])
-
-}
-
-
-#' Empty XML Files
-#'
-#' Details XML that has successfully parsed, but contains no episode level data
-#'
-#' @param episodes collected episodes postgres table
-#' @param provenance collected provenance postgres table
-#'
-#' @return a tibble containing the site and filename of XML with no episodes
-#' @export
+#' @importFrom xml2 read_xml xml_validate
+#' @importFrom magrittr %>%
+#' @importFrom stringr str_sub
 #'
 #' @examples
-#' empty_files(episodes, provenance)
-empty_files <- function(episodes, provenance) {
+#' xml_validation(xml, schema)
+xml_validation <- function(xml_file, schema) {
 
-  full_join(episodes, provenance, by = c("provenance" = "file_id")) %>%
-  filter(is.na(episode_id)) %>%
-  select(site, filename)
+  xml_file_x <- xml2::read_xml(xml_file)
+
+  validation <- xml2::xml_validate(xml_file_x, schema)
+
+  if (validation == TRUE) {
+    return(TRUE)
+  } else {
+
+  errors <- validation %>%
+      base::attr(which = "errors") %>%
+      stringr::str_sub(start = 54L, end = -1L)
+
+   return(errors)
+
+  }
 
 }
 
@@ -86,26 +71,28 @@ empty_files <- function(episodes, provenance) {
 #' @return a tibble with summary details of errors
 #' @export
 #'
+#' @import dplyr
+#'
 #' @examples
-#' error_summary(errors, provenance)
-error_summary <- function(errors = NULL, provenance = NULL) {
+#' error_summary(xml_validation)
+error_summary <- function(xml_validation) {
 
-  errors %>%
-    left_join(provenance %>% select(file_id, site), by = c("provenance_id" = "file_id")) %>%
-    mutate(message_type = if_else(grepl("clock change", message), "Clock Change",
-                          if_else(grepl("nhs number", message), "Missing NHS / Start",
-                          if_else(grepl("empty tags|Empty tags", message), "Empty Tags",
-                          if_else(grepl("primary value", message), "Primary Value",
-                          if_else(grepl("Rejected patient", message), "Rejected",
-                          if_else(grepl("integer value is out of range", message), "Int OOR",
-                          if_else(grepl("Got float, expected int", message), "Got float, Expected Int",
-                          if_else(grepl("not a valid value of the atomic type \'xs:integer\'", message), "Got float, Expected Int",
-                          if_else(grepl("could not convert string to float", message), "Got string, Expected float",
-                          if_else(grepl("is not an element of the set", message), "Category OOR",
-                            "Other"
-                          ))))))))))) %>%
-    group_by(site, message_type) %>%
-    summarise(count = n())
+  xml_validation %>%
+    dplyr::left_join(provenance %>% select(file_id, site), by = c("provenance_id" = "file_id")) %>%
+    dplyr::mutate(message_type = dplyr::case_when(
+      grepl("clock change", message) ~ "Daylight saving bug",
+      grepl("nhs number", message) ~ "Missing NHS Number",
+      grepl("empty tags|Empty tags", message) ~ "Empty XML Tags",
+      grepl("primary value", message) ~ "Missing Primary Value",
+      grepl("Rejected patient", message) ~ "Patient Rejected (Other)",
+      grepl("integer value is out of range", message) ~ "Numeric Out of Range",
+      grepl("Got float, expected int", message) ~ "Wrong Data Type",
+      grepl("not a valid value of the atomic type \'xs:integer\'", message) ~ "Wrong Data Type",
+      grepl("could not convert string to float", message) ~ "Wrong Data Type",
+      grepl("is not an element of the set", message) ~ "Wrong Data Type",
+      TRUE ~ "Other")) %>%
+    dplyr::group_by(site, message_type) %>%
+    dplyr::summarise(count = n())
 
 }
 

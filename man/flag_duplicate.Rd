@@ -7,8 +7,16 @@
 flag_duplicate(x)
 }
 \arguments{
+\item{x}{an extracted nhic event table}
+
 \item{...}{}
 }
+\value{
+a two column tibble with internal id and duplication status
+}
 \description{
-Flag Duplicates (S3 Generic)
+Flags nhic events for duplication. Duplicate events are assigned the value 1L
+}
+\examples{
+flag_duplicate(x)
 }

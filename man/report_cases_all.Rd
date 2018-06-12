@@ -9,6 +9,12 @@ report_cases_all(unique_cases_tbl = NULL)
 \arguments{
 \item{unique_cases_tbl}{from \code{pull_cases_all}}
 }
+\value{
+a summary of the unique episodes and patients
+}
 \description{
 Reports Case Numbers by Site
+}
+\examples{
+report_cases_all(unique_cases)
 }

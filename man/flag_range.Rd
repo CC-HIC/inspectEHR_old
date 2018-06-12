@@ -13,13 +13,17 @@ flag_range(x = NULL)
 }
 \value{
 a tibble of the same length as x with the following features:
-\item{1}{event is a duplicate}
-\item{0}{event is not a duplicate}
+\describe{
+  \item{-1}{event is below the defined range of plausibility}
+  \item{0}{event is valid}
+  \item{+1}{event is above the defined range of plausibility}
+}
 }
 \description{
-S3 generic
-Flags each event as being in range (0), out of range high (+1) or
-out of range low (-1)
+Flags each event as being in-range (0), out-of-range high (+1) or
+out-of-range low (-1). These ranges have been calibrated by hand based on
+prior evidence or expert opinion. Reference ranges are all found in
+\code{\link{qref}}.
 }
 \examples{
 flag_range(x)

@@ -15,7 +15,7 @@ This is the main function for processing data from CC-HIC. It wraps all alther f
 the whole database in one sweep.
 }
 \details{
-When running this function you should make the following folder heirachy availible:
+When running this function, path_name should be made availible with the following folders:
 plots
 working_data
 

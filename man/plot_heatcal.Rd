@@ -22,3 +22,7 @@ a plot with admission details in heatmap form
 \description{
 Plot Calendar Heatmap
 }
+\examples{
+plot_heatcal(episodes, provenance, "UCL")
+plot_heatcal(episodes, provenance, "UCL", "~/some/path/plot.png")
+}

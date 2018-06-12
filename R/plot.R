@@ -5,39 +5,53 @@
 #' @param x flagged table
 #'
 #' @importFrom rlang .data
+#' @export
 #'
 #' @return A tibble 1 row per event
-plot_hic <- function(x) {
+plot_hic <- function(x, path_name = NULL) {
 
   if (nrow(x) != 0) {
 
     # Identify the correct column type to pull out
     code_name <- attr(x, "code_name")
+    data_class <- class(x)[1]
 
-    if (code_name %in% categorical_hic) {
-      main_plot <- "histogram"
-    } else {
-      main_plot <- "default"
-    }
+    perfect_plot <- data_class %>%
+      base::switch(
+        integer_1d = plot_default(x, code_name = code_name),
+        integer_2d = plot_default(x, code_name = code_name),
+           real_1d = plot_default(x, code_name = code_name),
+           real_2d = plot_default(x, code_name = code_name),
+         string_1d = plot_default(x, code_name = code_name),
+         string_2d = plot_default(x, code_name = code_name),
+       datetime_1d = plot_datetime(x, code_name = code_name),
+           date_1d = plot_date(x, code_name = code_name),
+           time_1d = plot_time(x, code_name = code_name))
 
-    # extract chosen input variable from the core table
+  if (!is.null(path_name)) {
 
-    perfect_plot <- main_plot %>%
-      switch(default = plot_default(x, code_name),
-             histogram = plot_histogram(x, code_name))
+    ggsave(
+      plot = perfect_plot,
+      filename = paste0(
+        path_name, "plots/", code_name, "_main.png"),
+      dpi = 300, width = 10, units = "in")
 
-    ggsave(plot = perfect_plot,
-           filename = paste0(
-             path_name, "plots/", code_name, "_main.png"))
+  }
 
-    if (any(grepl("2d", class(x)))) {
+  # Check to see if there is a 2d component, and if so plot periodicity
+  if (any(grepl("2d", class(x)))) {
 
-      periodicity_plot <- plot_periodicity(x, code_name)
+    periodicity_plot <- plot_periodicity(x, code_name)
 
-      ggsave(plot = periodicity_plot,
-             filename = paste0(
-               path_name, "plots/", code_name, "_periodicity.png"))
+  if (!is.null(path_name)) {
 
+    ggsave(
+      plot = periodicity_plot,
+  filename = paste0(
+      path_name, "plots/", code_name, "_periodicity.png"),
+  dpi = 300, width = 10, units = "in")
+
+  }
 
   }
 
@@ -49,6 +63,9 @@ plot_hic <- function(x) {
         "/n")
 
   }
+
+  # debugging only
+  return(perfect_plot)
 
 }
 
@@ -84,19 +101,28 @@ plot_hic <- function(x) {
 #' @examples
 plot_default <- function(x, code_name) {
 
-  density_plot <- x %>%
-    filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
-           .data$duplicate == 0 | is.na(.data$duplicate),
-           .data$range_error == 0 | is.na(.data$range_error)) %>%
-    ggplot(
-      aes_string(x = "value",
-       fill = "site")) +
-    geom_density(alpha = 0.8) +
-    xlab(code_name) +
-    ylab("Population Density") +
-    theme_minimal()
+  if (code_name %in% categorical_hic) {
 
-  return(density_plot)
+    perfect_plot <- plot_histogram(x, code_name)
+
+  } else {
+
+    perfect_plot <- x %>%
+      filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+             .data$duplicate == 0 | is.na(.data$duplicate),
+             .data$range_error == 0 | is.na(.data$range_error)) %>%
+      ggplot(
+        aes_string(x = "value",
+                   colour = "site")) +
+      scale_colour_manual(values = all_sites.col) +
+      geom_density() +
+      xlab(code_name) +
+      ylab("Population Density") +
+      theme_minimal()
+
+  }
+
+  return(perfect_plot)
 
 }
 
@@ -111,24 +137,42 @@ plot_default <- function(x, code_name) {
 #'
 #' @importFrom rlang .data
 #' @importFrom magrittr %>%
+#' @importFrom tidyr complete
+#' @importFrom scales percent_format
 #'
 #' @examples
 plot_histogram <- function(x, code_name) {
 
-  plot_histogram <- x %>%
-    filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+  perfect_plot <- x %>%
+    dplyr::filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
            .data$duplicate == 0 | is.na(.data$duplicate),
            .data$range_error == 0 | is.na(.data$range_error)) %>%
+    dplyr::select(site, value) %>%
+    dplyr::group_by(site, value) %>%
+    dplyr::count() %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(site) %>%
+    dplyr::mutate(total = sum(n)) %>%
+    dplyr::ungroup() %>%
+    tidyr::complete(site, value) %>%
     ggplot(
-      aes_string(fill = "site",
-       x = "value")) +
-    geom_bar() +
+      aes(x = value,
+       fill = site)
+    ) +
+    geom_bar(
+      aes(y = n/total),
+      position = "dodge",
+      stat = "identity",
+      width = 0.8) +
+    scale_fill_manual(values = all_sites.col) +
+    scale_y_continuous(labels = scales::percent_format()) +
     xlab(code_name) +
-    ylab("Population Density") +
+    ylab("Percentage by BRC") +
     theme_minimal()
 
-}
+  return(perfect_plot)
 
+}
 
 
 #' Plot periodicity
@@ -145,41 +189,144 @@ plot_histogram <- function(x, code_name) {
 #' @examples
 plot_periodicity <- function(x, code_name) {
 
-  density_plot <- x %>%
-    filter(.data$out_of_bounds == 0,
-           .data$duplicate == 0,
-           .data$range_error == 0) %>%
+  periodicity_plot <- x %>%
+    filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+           .data$duplicate == 0 | is.na(.data$duplicate),
+           .data$range_error == 0 | is.na(.data$range_error)) %>%
+    distinct(.data$site, .data$periodicity) %>%
+    filter(.data$periodcity <= 48) %>%
     ggplot(
       aes_string(x = "periodicity",
-           fill = "site")) +
-    geom_density(alpha = 0.8) +
+           colour = "site")) +
+    scale_colour_manual(values = all_sites.col) +
+    geom_histogram() +
     xlab(code_name) +
     ylab("Population Density") +
     theme_minimal()
 
-  return(density_plot)
+  return(periodicity_plot)
 
 }
 
 
+#' Plot Date
+#'
+#' @param x
+#' @param code_name
+#'
+#' @return
+#' @export
+#'
+#' @importFrom rlang .data
+#' @importFrom magrittr %>%
+#'
+#' @examples
+plot_date <- function(x, code_name) {
 
-plot_occupancy <- function(x) {
+  date_plot <- x %>%
+    filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+           .data$duplicate == 0 | is.na(.data$duplicate),
+           .data$range_error == 0 | is.na(.data$range_error)) %>%
+    ggplot(
+      aes_string(x = "date",
+            colour = "site",
+                 y = "value")) +
+    scale_colour_manual(values = all_sites.col) +
+    geom_line() +
+    xlab("date") +
+    ylab(code_name) +
+    theme_minimal()
 
-  occ_plot <- x %>%
-    ggplot(aes(x = week_of_month, y = site, fill = est_occupancy)) +
-    geom_tile(colour = "white") +
-    scale_fill_gradient(low = "#ffffbf", high = "#d7191c", na.value = "grey70") +
-    facet_grid(year ~ month) +
-    theme_minimal(base_size = 20) +
-    theme(panel.grid = element_blank()) +
-    labs(fill = "", x = "Week of Month", y = "Biomedical Research Center")
-
-  return(occ_plot)
+  return(date_plot)
 
 }
 
 
-# # this is for plotting this out
+#' Plot Datetime
+#'
+#' @param x
+#' @param code_name
+#'
+#' @return
+#' @export
+#'
+#' @importFrom rlang .data
+#' @importFrom magrittr %>%
+#'
+#' @examples
+plot_datetime <- function(x, code_name) {
+
+  datetime_plot <- x %>%
+    filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+           .data$duplicate == 0 | is.na(.data$duplicate),
+           .data$range_error == 0 | is.na(.data$range_error)) %>%
+    ggplot(
+      aes_string(x = "datetime",
+            colour = "site",
+                 y = "value")) +
+    scale_colour_manual(values = all_sites.col) +
+    geom_line() +
+    xlab("datetime") +
+    ylab(code_name) +
+    theme_minimal()
+
+  return(date_plot)
+
+}
+
+
+#' Plot Time
+#'
+#' @param x
+#' @param code_name
+#'
+#' @return
+#' @export
+#'
+#' @importFrom rlang .data
+#' @importFrom magrittr %>%
+#'
+#' @examples
+plot_time <- function(x, code_name) {
+
+  time_plot <- x %>%
+    filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+           .data$duplicate == 0 | is.na(.data$duplicate),
+           .data$range_error == 0 | is.na(.data$range_error)) %>%
+    ggplot(
+      aes_string(x = "time",
+            colour = "site",
+                 y = "value")) +
+    scale_colour_manual(values = all_sites.col) +
+    geom_line() +
+    xlab("time") +
+    ylab(code_name) +
+    theme_minimal()
+
+  return(date_plot)
+
+}
+
+
+# Retired occupancy plot
+
+# plot_occupancy <- function(x) {
+#
+#   occ_plot <- x %>%
+#     ggplot(aes(x = week_of_month, y = site, fill = est_occupancy)) +
+#     geom_tile(colour = "white") +
+#     scale_fill_gradient(low = "#ffffbf", high = "#d7191c", na.value = "grey70") +
+#     facet_grid(year ~ month) +
+#     theme_minimal(base_size = 20) +
+#     theme(panel.grid = element_blank()) +
+#     labs(fill = "", x = "Week of Month", y = "Biomedical Research Center")
+#
+#   return(occ_plot)
+#
+# }
+
+
+# For plotting invalid months
 #
 # for (i in 1:length(all_sites)) {
 #

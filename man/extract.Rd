@@ -7,7 +7,7 @@
 extract(core_table = NULL, input = "NIHR_HIC_ICU_0557")
 }
 \arguments{
-\item{core_table}{core table}
+\item{core_table}{core table from make_core}
 
 \item{input}{the input variable of choice}
 }

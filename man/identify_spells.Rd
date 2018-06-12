@@ -13,6 +13,9 @@ identify_spells(episode_length = NULL, episodes = NULL, minutes = 60)
 
 \item{minutes}{numeric value to define transition period}
 }
+\value{
+a tibble with spells identified and coded
+}
 \description{
 some sites have patients check out of one ICU and into another (for example ICU stepdown to HDU).
 This checks to see if patients are discharged from 1 unit and admitted to another wihtin a pre-defined

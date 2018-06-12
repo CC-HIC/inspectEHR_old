@@ -11,7 +11,7 @@
 #'
 #' @examples
 #' plot_heatcal(episodes, provenance, "UCL")
-#' plot_heatcal(episodes, provenance, "UCL, "~/some/path/plot.png")
+#' plot_heatcal(episodes, provenance, "UCL", "~/some/path/plot.png")
 plot_heatcal <- function(episodes = NULL,
                          provenance = NULL,
                          site = NULL,
@@ -62,6 +62,7 @@ plot_heatcal <- function(episodes = NULL,
 #' @importFrom lubridate floor_date wday days
 #'
 #' @examples
+#' find_first_sunday(x)
 find_first_sunday <- function(x) {
 
   first <- floor_date(x, "month")

@@ -5,13 +5,14 @@
 #' there is any, event level data. This is the most accurate measure of the actual number of "patients"
 #' in the system.
 #'
-#' @param episodes
-#' @param provenance
+#' @param episodes episode table
+#' @param provenance provenance table
 #'
 #' @return a tibble with fields for site, nhs_number, episode_id and start
 #' @export
 #'
 #' @examples
+#' retrieve_unique_cases(episodes, provenance)
 retrieve_unique_cases <- function(episodes = NULL, provenance = NULL) {
 
   stopifnot(!is.null(episodes), !is.null(provenance))
@@ -36,10 +37,11 @@ retrieve_unique_cases <- function(episodes = NULL, provenance = NULL) {
 #'
 #' @param unique_cases_tbl from \code{pull_cases_all}
 #'
-#' @return
+#' @return a summary of the unique episodes and patients
 #' @export
 #'
 #' @examples
+#' report_cases_all(unique_cases)
 report_cases_all <- function(unique_cases_tbl = NULL) {
 
   cases <- unique_cases_tbl %>%
@@ -61,10 +63,11 @@ report_cases_all <- function(unique_cases_tbl = NULL) {
 #'
 #' @param unique_cases_tbl from \code{pull_cases_all}
 #'
-#' @return
+#' @return breakdown of unique daily cases
 #' @export
 #'
 #' @examples
+#' report_cases_daily(unique_cases)
 report_cases_daily <- function(unique_cases_tbl = NULL) {
 
   cases <- unique_cases_tbl %>%
@@ -86,10 +89,11 @@ report_cases_daily <- function(unique_cases_tbl = NULL) {
 #' @param unique_cases_tbl from \code{pull_cases_all}
 #' @param site
 #'
-#' @return
+#' @return a tibble with the number of unique episodes admitted for a given day
 #' @export
 #'
 #' @examples
+#' report_cases_byday(unique_cases, bysite == "UCL")
 report_cases_byday <- function(unique_cases_tbl = NULL, bysite = NULL) {
 
   cases <- unique_cases_tbl %>%
@@ -115,10 +119,11 @@ report_cases_byday <- function(unique_cases_tbl = NULL, bysite = NULL) {
 #' @param events_table the events table
 #' @param reference_table the reference table
 #'
-#' @return
+#' @return a tibble with unique episodes and patients reported by ICU
 #' @export
 #'
 #' @examples
+#' report_cases_unit(events, reference)
 report_cases_unit <- function(events_table = NULL, reference_table = NULL){
 
   events_table %>%
@@ -157,8 +162,9 @@ report_cases_unit <- function(events_table = NULL, reference_table = NULL){
 #' }
 #'
 #' @param core core table from \code{make_core()}
+#' @param useDeath logical value to determine if this calculation should include death data
 #'
-#' @return
+#' @return a tibble with temporal episode figures, length of stay and a validation code
 #' @export
 #'
 #' @examples
@@ -171,12 +177,12 @@ epi_length <- function(core = NULL, useDeath = TRUE) {
     deceased <- resolve_date_time(core = core, "NIHR_HIC_ICU_0042", "NIHR_HIC_ICU_0043")()
 
   alive %<>%
-    left_join(deceased, by = "episode_id", suffix = c(".A", ".D")) %>%
-    mutate(final_end = if_else(is.na(epi_end_dttm.A) |
+    dplyr::left_join(deceased, by = "episode_id", suffix = c(".A", ".D")) %>%
+    dplyr::mutate(final_end = if_else(is.na(epi_end_dttm.A) |
                                  ((epi_end_dttm.D < epi_end_dttm.A) & !is.na(epi_end_dttm.D)),
                              epi_end_dttm.D, epi_end_dttm.A)) %>%
-    select(episode_id, site, epi_start_dttm, final_end) %>%
-    rename(epi_end_dttm = final_end) %>%
+    dplyr::select(episode_id, site, epi_start_dttm, final_end) %>%
+    dplyr::rename(epi_end_dttm = final_end) %>%
     dplyr::mutate(los = difftime(epi_end_dttm, epi_start_dttm, units = "days")) %>%
     dplyr::mutate(validity = ifelse(is.na(epi_end_dttm), 1L,
                                ifelse(los <= 0, 2L, 0L)))
@@ -207,7 +213,7 @@ epi_length <- function(core = NULL, useDeath = TRUE) {
 #' @param episodes episodes tibble
 #' @param minutes numeric value to define transition period
 #'
-#' @return
+#' @return a tibble with spells identified and coded
 #' @export
 #'
 #' @examples
@@ -237,12 +243,13 @@ identify_spells <- function(episode_length = NULL, episodes = NULL, minutes = 60
 #'
 #' pulls the discharge status
 #'
-#' @param event_table
+#' @param event_table main event table
 #'
-#' @return
+#' @return a tibble with unit discharge status
 #' @export
 #'
 #' @examples
+#' unit_discharge_status(events)
 unit_discharge_status <- function(event_table) {
 
   event_table %>%
@@ -263,6 +270,8 @@ unit_discharge_status <- function(event_table) {
 #' @export
 #'
 #' @importFrom lubridate is.POSIXct ymd_hms
+#' @importFrom tidyr spread
+#' @importFrom dplyr select filter collect rename mutate_if
 #'
 #' @examples
 #' epi_end_alive(core)
@@ -329,7 +338,9 @@ resolve_date_time <- function(core, date_code, time_code) {
 
 
 
-#' Validate episodes
+#' Summarise Episode Validation
+#'
+#' Gives an overview summary of validation codes for the episode table
 #'
 #' #' validity is coded as:
 #' \itemize{
@@ -341,10 +352,11 @@ resolve_date_time <- function(core, date_code, time_code) {
 #'
 #' @param x
 #'
-#' @return
+#' @return a tibble containing summary information for validation at episode level
 #' @export
 #'
 #' @examples
+#' episode_validity(episode_length)
 episode_validity <- function(x) {
 
   x %<>%
@@ -370,127 +382,131 @@ episode_validity <- function(x) {
 #' @return a tibble of months that are to be excluded from future analysis
 #' @export
 #'
+#' @importFrom dplyr mutate group_by summarise left_join right_join n_distinct distinct tibble bind_rows
+#' @importFrom lubridate date year month wday
+#'
 #' @examples
 #' invalid_months(episodes, provenance)
 #' invalid_months(episodes, provenance, theshold = 15)
-invalid_months <- function(episodes, provenance, threshold = 10) {
+invalid_months <- function(episodes, provenance, all_sites, threshold = 10) {
 
   x <- retrieve_unique_cases(episodes, provenance)
 
-  x %>%
-    mutate(date = lubridate::date(start_date)) %>%
-    group_by(site, date) %>%
-    summarise(episode_count = n_distinct(episode_id)) %>%
-    mutate(year = year(date),
-           month = month(date, label = TRUE),
-           wday = wday(date, label = TRUE)) %>%
-    group_by(site, year, wday) %>%
-    summarise(mean_episodes = mean(episode_count),
-              sd_episode = sd(episode_count)) -> typical_admissions
+  # The typical admissions for a given day of the week within a year window
+  # This helps to account for seasonality and trend changes over time
+  typical_admissions <- x %>%
+    dplyr::mutate(date = lubridate::date(start_date)) %>%
+    dplyr::group_by(site, date) %>%
+    dplyr::summarise(episode_count = n_distinct(episode_id)) %>%
+    dplyr::mutate(year = lubridate::year(date),
+           month = lubridate::month(date, label = TRUE),
+           wday = lubridate::wday(date, label = TRUE)) %>%
+    dplyr::group_by(site, year, wday) %>%
+    dplyr::summarise(mean_episodes = mean(episode_count),
+                        sd_episode = sd(episode_count))
 
   # too_few tells me the days when admissions fell under the expected
-
-  x %>%
-    mutate(date = lubridate::date(start_date)) %>%
-    group_by(site, date) %>%
-    summarise(episodes = n()) %>%
-    mutate(year = year(date),
-           wday = wday(date, label = TRUE)) %>%
-    left_join(typical_admissions, by = c("site" = "site",
-                                         "year" = "year",
-                                         "wday" = "wday")) %>%
-    mutate(too_few = ifelse(episodes < (mean_episodes - 2*sd_episode), TRUE, FALSE)) %>%
-    filter(too_few == TRUE) %>%
-    select(site, date) -> too_few
+  too_few <- x %>%
+    dplyr::mutate(date = lubridate::date(start_date)) %>%
+    dplyr::group_by(site, date) %>%
+    dplyr::summarise(episodes = n()) %>%
+    dplyr::mutate(year = lubridate::year(date),
+                  wday = lubridate::wday(date, label = TRUE)) %>%
+    dplyr::left_join(typical_admissions, by = c("site" = "site",
+                                                "year" = "year",
+                                                "wday" = "wday")) %>%
+    dplyr::mutate(too_few = ifelse(episodes < (mean_episodes - 2*sd_episode), TRUE, FALSE)) %>%
+    dplyr::filter(too_few == TRUE) %>%
+    dplyr::select(site, date)
 
   # what we don't capture properly is days when there is no data - i.e. NAs
   # this is what we will fix here
+  na_days <- x %>%
+    dplyr::mutate(date = lubridate::date(start_date)) %>%
+    dplyr::select(site, date) %>%
+    dplyr::distinct(.keep_all = TRUE) %>%
+    dplyr::mutate(admission = TRUE)
 
-  x %>%
-    mutate(date = lubridate::date(start_date)) %>%
-    select(site, date) %>%
-    distinct(.keep_all = TRUE) %>%
-    mutate(admission = TRUE) -> na_days
-
-  # This is fragile and needs to be fixed as we get data into 2018
-
-  ds <- tibble(date = rep(seq.Date(from = lubridate::date("2014-01-01"),
-                                   to = lubridate::date("2018-01-01"), by = "day"),
-                          times = length(all_sites)))
+  ds <- tibble(
+    date = rep(
+      seq.Date(
+        from = lubridate::date("2014-01-01"),
+          to = lubridate::date(Sys.Date()),
+        by = "day"), times = length(all_sites)))
 
   ds %<>%
     mutate(site = rep(all_sites, each = nrow(ds)/length(all_sites)))
 
-  na_days %>%
-    right_join(ds,
+  too_few_all <- na_days %>%
+    dplyr::right_join(ds,
                by = c("date" = "date",
                       "site" = "site")) %>%
-    filter(is.na(admission)) %>%
-    select(-admission) %>%
-    bind_rows(too_few) -> too_few_all
+    dplyr::filter(is.na(admission)) %>%
+    dplyr::select(-admission) %>%
+    dplyr::bind_rows(too_few)
 
   ## Too few all now contains all the months where we will be excluding episodes
 
-  too_few_all %>%
-    mutate(
-      year = as.integer(year(date)),
-      month = month(date)) %>%
-    group_by(site, year, month) %>%
-    summarise(count = n()) %>%
-    filter(count >= threshold) -> invalid_months
+  invalid_months <- too_few_all %>%
+    dplyr::mutate(
+      year = as.integer(lubridate::year(date)),
+      month = lubridate::month(date)) %>%
+    dplyr::group_by(site, year, month) %>%
+    dplyr::summarise(count = n()) %>%
+    dplyr::filter(count >= threshold)
 
   return(invalid_months)
 
 }
 
 
-#' Calculate Estimated Site Occupancy
+#' #' Calculate Estimated Site Occupancy
+#' #'
+#' #' @param episode_length_tbl episode length table
+#' #' @param episodes_tbl episodes table
+#' #' @param provenance_tbl provenance table
+#' #'
+#' #' @return a table of similar structure to date_skelaton, but with estimated occupancies attached
+#' #' @export
+#' #'
+#' #' @examples
+#' calc_site_occupancy <- function(episode_length_tbl = NULL, impute = TRUE) {
 #'
-#' @param episode_length_tbl episode length table
-#' @param episodes_tbl episodes table
-#' @param provenance_tbl provenance table
+#'   all_sites <- c("Oxford", "RYJ", "GSTT", "UCL", "RGT")
 #'
-#' @return a table of similar structure to date_skelaton, but with estimated occupancies attached
-#' @export
+#'   date_skelaton <- make_date_skelaton()
 #'
-#' @examples
-calc_site_occupancy <- function(episode_length_tbl = NULL, impute = TRUE) {
-
-  all_sites <- c("Oxford", "RYJ", "GSTT", "UCL", "RGT")
-
-  date_skelaton <- make_date_skelaton()
-
-  occupancy_vec <- c()
-
-  for (i in 1:nrow(date_skelaton)) {
-
-    insert_this <- episode_length_tbl %>%
-      dplyr::filter(site == date_skelaton$site[i],
-                    date_skelaton$date[i] >= epi_start_dttm & date_skelaton$date[i] <= epi_end_dttm) %>%
-      nrow()
-
-    occupancy_vec <- c(occupancy_vec, insert_this)
-
-  }
-
-  date_skelaton$est_occupancy <- occupancy_vec
-
-  occupancy <- date_skelaton
-
-  if (!impute) {
-    return(occupancy)
-  } else {
-    occupancy$est_occupancy <- ifelse(occupancy$est_occupancy == 0 & occupancy$site == "RGT", 38,
-                             ifelse(occupancy$est_occupancy == 0 & occupancy$site == "UCL", 24,
-                             ifelse(occupancy$est_occupancy == 0 & occupancy$site == "Oxford", 11,
-                             ifelse(occupancy$est_occupancy == 0 & occupancy$site == "RYJ", 23,
-                             occupancy$est_occupancy))))
-
-    return(occupancy)
-
-  }
-
-
-}
+#'   occupancy_vec <- c()
+#'
+#'   for (i in 1:nrow(date_skelaton)) {
+#'
+#'     insert_this <- episode_length_tbl %>%
+#'       dplyr::filter(site == date_skelaton$site[i],
+#'                     date_skelaton$date[i] >= epi_start_dttm & date_skelaton$date[i] <= epi_end_dttm) %>%
+#'       nrow()
+#'
+#'     occupancy_vec <- c(occupancy_vec, insert_this)
+#'
+#'   }
+#'
+#'   date_skelaton$est_occupancy <- occupancy_vec
+#'
+#'   occupancy <- date_skelaton
+#'
+#'   if (!impute) {
+#'     return(occupancy)
+#'   } else {
+#'     occupancy$est_occupancy <- ifelse(occupancy$est_occupancy == 0 & occupancy$site == "RGT", 38,
+#'                              ifelse(occupancy$est_occupancy == 0 & occupancy$site == "UCL", 24,
+#'                              ifelse(occupancy$est_occupancy == 0 & occupancy$site == "Oxford", 11,
+#'                              ifelse(occupancy$est_occupancy == 0 & occupancy$site == "RYJ", 23,
+#'                              occupancy$est_occupancy))))
+#'
+#'     return(occupancy)
+#'
+#'   }
+#'
+#'
+#' }
 
 

@@ -4,7 +4,7 @@
 \alias{invalid_months}
 \title{Show Invalid Months}
 \usage{
-invalid_months(episodes, provenance, threshold = 10)
+invalid_months(episodes, provenance, all_sites, threshold = 10)
 }
 \arguments{
 \item{episodes}{collected episodes table}

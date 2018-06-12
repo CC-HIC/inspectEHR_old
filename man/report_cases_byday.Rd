@@ -11,6 +11,12 @@ report_cases_byday(unique_cases_tbl = NULL, bysite = NULL)
 
 \item{site}{}
 }
+\value{
+a tibble with the number of unique episodes admitted for a given day
+}
 \description{
 Reports Case Numbers by Site and Day
+}
+\examples{
+report_cases_byday(unique_cases, bysite == "UCL")
 }

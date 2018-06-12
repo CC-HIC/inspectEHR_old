@@ -4,13 +4,15 @@
 #' further processing. This is essentially the creator method for
 #' the S3 classes associated with the inspectEHR package
 #'
-#' @param core_table core table
+#' @param core_table core table from make_core
 #' @param input the input variable of choice
 #'
 #' @importFrom rlang .data !!
 #' @importFrom magrittr %>%
 #'
 #' @return A tibble with 1 row per event
+#' @export
+#'
 #' @examples
 #' extract(core)
 #' extract(core, input = "NIHR_HIC_ICU_0557")
@@ -27,15 +29,15 @@ extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 
   # extract chosen input variable from the core table
   extracted_table <- dataitem %>%
-    switch(integer_1d = extract_1d(core_table, input, data_location = "integer"),
-           integer_2d = extract_2d(core_table, input, data_location = "integer"),
-           real_1d = extract_1d(core_table, input, data_location = "real"),
-           real_2d = extract_2d(core_table, input, data_location = "real"),
-           string_1d = extract_1d(core_table, input, data_location = "string"),
-           string_2d = extract_2d(core_table, input, data_location = "string"),
-           datetime_1d = extract_1d(core_table, input, data_location = "datetime"),
-           date_1d = extract_1d(core_table, input, data_location = "date"),
-           time_1d = extract_1d(core_table, input, data_location = "time"))
+    base::switch(integer_1d = extract_1d(core_table, input, data_location = "integer"),
+                 integer_2d = extract_2d(core_table, input, data_location = "integer"),
+                    real_1d = extract_1d(core_table, input, data_location = "real"),
+                    real_2d = extract_2d(core_table, input, data_location = "real"),
+                  string_1d = extract_1d(core_table, input, data_location = "string"),
+                  string_2d = extract_2d(core_table, input, data_location = "string"),
+                datetime_1d = extract_1d(core_table, input, data_location = "datetime"),
+                    date_1d = extract_1d(core_table, input, data_location = "date"),
+                    time_1d = extract_1d(core_table, input, data_location = "time"))
 
   class(extracted_table) <- append(class(extracted_table), dataitem, after = 0)
 
@@ -58,7 +60,7 @@ extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 #' @return
 #' @export
 #'
-#' @importFrom rlang .data !!
+#' @importFrom rlang .data !! sym enquo
 #' @importFrom magrittr %>%
 #'
 #' @examples
@@ -98,7 +100,7 @@ extract_1d <- function(core_table = NULL, input = NULL, data_location = NULL) {
 #' @return
 #' @export
 #'
-#' @importFrom rlang .data !!
+#' @importFrom rlang .data !! sym enquo
 #' @importFrom magrittr %>%
 #'
 #' @examples

@@ -7,7 +7,12 @@
 flag_periodicity(x, los_table = NULL)
 }
 \arguments{
-\item{x}{}
+\item{x}{an extracted nhic events table}
+
+\item{los_table}{episode length table}
+}
+\value{
+an extension of x with a mutated periodicity column
 }
 \description{
 Takes a data item tibble that has been pre-flagged with range, boundary and duplicate errors
@@ -19,4 +24,7 @@ level rather than site level.
 These are only defined for 2d data
 
 Periodicity is given as event count per los unit. The default behaviour will be events/day.
+}
+\examples{
+flag_periodicity(x, los_table)
 }

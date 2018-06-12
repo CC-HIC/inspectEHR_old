@@ -2,14 +2,20 @@
 % Please edit documentation in R/episode_parameters.R
 \name{episode_validity}
 \alias{episode_validity}
-\title{Validate episodes}
+\title{Summarise Episode Validation}
 \usage{
 episode_validity(x)
 }
 \arguments{
 \item{x}{}
 }
+\value{
+a tibble containing summary information for validation at episode level
+}
 \description{
+Gives an overview summary of validation codes for the episode table
+}
+\details{
 #' validity is coded as:
 \itemize{
   \0 - Validated
@@ -17,4 +23,7 @@ episode_validity(x)
   \2 - Invalid: negative length of stay
   \3 = Invalid: length of stay under 6 hours
 }
+}
+\examples{
+episode_validity(episode_length)
 }

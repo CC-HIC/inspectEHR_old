@@ -13,6 +13,7 @@
 #' @export
 #'
 #' @examples
+#' align_dttm(tble, date, time, key)
 align_dttm <- function(tble, date, time, key) {
 
   date_tbl <- tble %>% select(key, date) %>% na.omit()

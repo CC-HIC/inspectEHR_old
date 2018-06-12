@@ -7,8 +7,16 @@
 coverage(x, ...)
 }
 \arguments{
+\item{x}{an extracted nhic dataitem}
+
 \item{...}{}
+}
+\value{
+a tibble describing the coverage of that dataitem over a defined time window
 }
 \description{
 Describes the coverage for reporting of a variable (S3 Generic)
+}
+\examples{
+coverage(x, occupancy, all_cases)
 }

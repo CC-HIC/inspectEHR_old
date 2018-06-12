@@ -24,6 +24,10 @@ periodicity
 }
 \details{
 periodicity checking is conditional on the preceding 3 flags,
-as ony those events that validate are taking into consideration
+as only those events that validate are taking into consideration
 of periodicity checking
+}
+\examples{
+hr <- extract(core, input = "NIHR_HIC_ICU_0108")
+flag_all(hr, episode_length)
 }

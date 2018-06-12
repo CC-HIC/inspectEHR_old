@@ -8,7 +8,7 @@
 #' periodicity
 #'
 #' periodicity checking is conditional on the preceding 3 flags,
-#' as ony those events that validate are taking into consideration
+#' as only those events that validate are taking into consideration
 #' of periodicity checking
 #'
 #' @param x extracted data item
@@ -18,34 +18,35 @@
 #' @importFrom rlang .data !!
 #'
 #' @return a tibble with flags applied
+#' @export
 #'
 #' @examples
-#' hr <- extract(core, input = "NIHR_HIC_ICU_0108)
+#' hr <- extract(core, input = "NIHR_HIC_ICU_0108")
 #' flag_all(hr, episode_length)
 flag_all <- function(x, los_table = NULL) {
 
+  # Aborts function if the class is not recognised
   if (!(any(class(x) %in% preserved_classes))) {
     stop("this function is not defined for this class")
   }
 
-  # capture input name
+  # Captures NHIC input name
   input_name <- attr(x, "code_name")
 
-  # check the availible methods for this class
+  # Checks the availible methods for this class
   avail_methods <- methods(class = class(x)[1])
   event_class <- class(x)[1]
 
-  # Apply this flag if an appropriate method exists, or return NA
+  # Apply RANGE FLAG if an appropriate method exists, or return NA
   if (any(grepl("flag_range", avail_methods))) {
     rf <- x %>% flag_range()
   } else {
-
-    # Adds NAs as a column if this is not defined
     rf <- x %>%
       dplyr::mutate(range_error = NA) %>%
       dplyr::select(.data$internal_id, .data$range_error)
   }
 
+  # Apply BOUNDARY FLAG if an appropriate method exists, or return NA
   if (any(grepl("flag_bounds", avail_methods))) {
     bf <- x %>% flag_bounds(los_table = los_table)
   } else {
@@ -54,6 +55,7 @@ flag_all <- function(x, los_table = NULL) {
       dplyr::select(.data$internal_id, .data$out_of_bounds)
   }
 
+  # Apply DUPLICATE FLAG if an appropriate method exists, or return NA
   if (any(grepl("flag_duplicate", avail_methods))) {
     df <- x %>% flag_duplicate()
   } else {
@@ -64,12 +66,13 @@ flag_all <- function(x, los_table = NULL) {
 
   # Join the flags above back to the original df
   # This step must be performed prior to periodicity checking
+  # Using LEFT join on the original table so as to not loose any data
   x %<>%
     left_join(rf, by = "internal_id") %>%
     left_join(bf, by = "internal_id") %>%
     left_join(df, by = "internal_id")
 
-  # Apply periodicity if a method exists
+  # Apply PERIODICITY FLAG if an appropriate method exists, or return NA
   if (any(grepl("flag_periodicity", avail_methods))) {
     x %<>% flag_periodicity(los_table = los_table)
   } else {
@@ -79,7 +82,7 @@ flag_all <- function(x, los_table = NULL) {
 
   attr(x, "code_name") <- input_name
 
-  # class tidying up
+  # Class tidying up
   if (any(class(x) %in% preserved_classes)) {
 
     return(x)
@@ -94,21 +97,22 @@ flag_all <- function(x, los_table = NULL) {
 }
 
 
-# ==== FLAG BY EPISODE REFERENCE RANGE
-
-
 #' Flag Events by Reference Range (S3 Generic)
 #'
-#' S3 generic
-#' Flags each event as being in range (0), out of range high (+1) or
-#' out of range low (-1)
+#' Flags each event as being in-range (0), out-of-range high (+1) or
+#' out-of-range low (-1). These ranges have been calibrated by hand based on
+#' prior evidence or expert opinion. Reference ranges are all found in
+#' \code{\link{qref}}.
 #'
 #' @param x an extracted event table
 #' @param ... further arguments to pass to the S3 method
 #'
 #' @return a tibble of the same length as x with the following features:
-#' \item{1}{event is a duplicate}
-#' \item{0}{event is not a duplicate}
+#' \describe{
+#'   \item{-1}{event is below the defined range of plausibility}
+#'   \item{0}{event is valid}
+#'   \item{+1}{event is above the defined range of plausibility}
+#' }
 #'
 #' @export
 #'
@@ -118,6 +122,7 @@ flag_range <- function(x = NULL) {
   UseMethod("flag_range", x)
 }
 
+
 flag_range.default <- function(...) {
 
   print("there are no methods for this class")
@@ -125,7 +130,13 @@ flag_range.default <- function(...) {
 }
 
 
+#' Flag Range Numeric
+#'
+#' The generic function for numeric type range flags
+#'
 #' @param x
+#'
+#' @export
 #'
 #' @importFrom magrittr %>% %<>%
 #' @importFrom rlang .data !!
@@ -143,6 +154,8 @@ flag_range_numeric <- function(x = NULL) {
 
 }
 
+
+#' @export
 #' @importFrom magrittr %>% %<>%
 #' @importFrom rlang .data !!
 flag_range.real_2d <- function(x = NULL) {
@@ -156,6 +169,9 @@ flag_range.real_2d <- function(x = NULL) {
 }
 
 
+#' @export
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
 flag_range.real_1d <- function(x = NULL) {
 
   x %<>% flag_range_numeric()
@@ -167,6 +183,9 @@ flag_range.real_1d <- function(x = NULL) {
 }
 
 
+#' @export
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
 flag_range.integer_2d <- function(x = NULL) {
 
   x %<>% flag_range_numeric()
@@ -178,6 +197,9 @@ flag_range.integer_2d <- function(x = NULL) {
 }
 
 
+#' @export
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
 flag_range.integer_1d <- function(x = NULL) {
 
   x %<>% flag_range_numeric()
@@ -189,14 +211,31 @@ flag_range.integer_1d <- function(x = NULL) {
 }
 
 
+#' @export
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
+#' @importFrom stringr str_length
 flag_range.string_2d <- function(x = NULL) {
 
-  # joins to the quality refernce table to identify range errors
-  x %<>%
-    dplyr::mutate(
-      range_error = ifelse(
-        stringr::str_length(value) <= 2, 0L, 1L)) %>%
-    dplyr::select(.data$internal_id, .data$range_error)
+  # Checks to see if this is micodata, and if so aborts
+  if (attr(x, "code_name") == "NIHR_HIC_ICU_0187") {
+
+    x %<>%
+      dplyr::select(.data$internal_id) %>%
+      dplyr::mutate(range_error = 0L)
+
+  } else {
+
+    # Checks if string length > 2 as these are no string values in the schema
+    # that exceed 2. This is a quick workaround till we find an efficient way
+    # to bring in the schema definition
+    x %<>%
+      dplyr::mutate(
+        range_error = ifelse(
+          stringr::str_length(value) <= 2, 0L, 1L)) %>%
+      dplyr::select(.data$internal_id, .data$range_error)
+
+  }
 
   class(x) <- append(class(x), "string_2d", after = 0)
 
@@ -205,9 +244,14 @@ flag_range.string_2d <- function(x = NULL) {
 }
 
 
+#' @export
+#' @importFrom magrittr %>% %<>%
+#' @importFrom rlang .data !!
 flag_range.string_1d <- function(x = NULL) {
 
-  # joins to the quality refernce table to identify range errors
+  # Checks if string length > 2 as these are no string values in the schema
+  # that exceed 2. This is a quick workaround till we find an efficient way
+  # to bring in the schema definition
   x %<>%
     dplyr::mutate(
       range_error = ifelse(
@@ -221,9 +265,11 @@ flag_range.string_1d <- function(x = NULL) {
 }
 
 
+#' @export
+#' @importFrom lubridate dmy
 flag_range.date_1d <- function(x = NULL) {
 
-  # joins to the quality refernce table to identify range errors
+  # These are very primitive checks for date
   x %<>%
     dplyr::mutate(
       range_error = ifelse(.data$value > Sys.Date(), 1L,
@@ -237,9 +283,11 @@ flag_range.date_1d <- function(x = NULL) {
 }
 
 
+#' @export
+#' @importFrom lubridate dmy_hms
 flag_range.datetime_1d <- function(x = NULL) {
 
-  # joins to the quality refernce table to identify range errors
+  # These are very primitive checks for datetime
   x %<>%
     dplyr::mutate(
       range_error = ifelse(.data$value > Sys.time(), 1L,
@@ -261,17 +309,18 @@ flag_range.datetime_1d <- function(x = NULL) {
 #' Flag Events by Episode Boundaries (S3 Generic)
 #'
 #' If the event of concern is a string, since only Airway and Organism are time
-#' varying string fields
-#' the behavior on hic_str differs.
+#' varying string fields the behavior on hic_str differs.
 #'
 #' @param x an extracted tibble
 #' @param ...
 #'
 #' @return a tibble of the same length as x with the following values
-#' \item{-1}{event occurred significantly before ICU episode}
-#' \item{0}{event occurred during ICU episode}
-#' \item{+1}{event occurred significantly after ICU episode}
-#' \item{NA}{Foundation elements were not availible and so this parameter could not be calculated}
+#' \describe{
+#'   \item{-1}{event occurred significantly before ICU episode}
+#'   \item{0}{event occurred during ICU episode}
+#'   \item{+1}{event occurred significantly after ICU episode}
+#'   \item{NA}{Foundation elements were not availible and so this parameter could not be calculated}
+#' }
 #' @export
 #'
 #' @examples
@@ -291,22 +340,24 @@ flag_bounds.default <- function(...) {
 
 #' Flag boundaries of 2d data items
 #'
-#' @param x
-#' @param los_table
+#' Sets boundary conditions for events in relation to episodes
 #'
-#' @return
+#' @param x an extracted nhic event table
+#' @param los_table episode length table
+#'
+#' @return a two column tibble with internal id and duplication status
 #' @importFrom magrittr %>% %<>%
-#' @importFrom rlang .data
+#' @importFrom rlang .data enquo
+#' @export
 #'
 #' @examples
+#' flag_bounds_2d(x, los_table)
 flag_bounds_2d <- function(x = NULL, los_table = NULL) {
 
   x %<>%
-    left_join(
-      los_table %>% select(-.data$site),
-      by = "episode_id") %>%
-    mutate(
-      out_of_bounds = ifelse(
+    left_join(los_table %>%
+                select(-.data$site), by = "episode_id") %>%
+    mutate(out_of_bounds = ifelse(
         difftime(.data$datetime, .data$epi_start_dttm, units = "days") < -2, -1L,
       ifelse(
         difftime(.data$datetime, .data$epi_end_dttm, units = "days") > 2, 1L,
@@ -320,6 +371,7 @@ flag_bounds_2d <- function(x = NULL, los_table = NULL) {
 }
 
 
+#' @export
 flag_bounds.real_2d <- function(x = NULL, los_table = NULL) {
 
   x %<>% flag_bounds_2d(los_table = los_table)
@@ -331,6 +383,7 @@ flag_bounds.real_2d <- function(x = NULL, los_table = NULL) {
 }
 
 
+#' @export
 flag_bounds.integer_2d <- function(x = NULL, los_table = NULL) {
 
   x %<>% flag_bounds_2d(los_table = los_table)
@@ -342,6 +395,7 @@ flag_bounds.integer_2d <- function(x = NULL, los_table = NULL) {
 }
 
 
+#' @export
 flag_bounds.string_2d <- function(x = NULL, los_table = NULL) {
 
   x %<>% flag_bounds_2d(los_table = los_table)
@@ -358,13 +412,16 @@ flag_bounds.string_2d <- function(x = NULL, los_table = NULL) {
 
 #' Flag Duplicates (S3 Generic)
 #'
-#' @param x
+#' Flags nhic events for duplication. Duplicate events are assigned the value 1L
+#'
+#' @param x an extracted nhic event table
 #' @param ...
 #'
-#' @return
+#' @return a two column tibble with internal id and duplication status
 #' @export
 #'
 #' @examples
+#' flag_duplicate(x)
 flag_duplicate <- function(x) {
   UseMethod("flag_duplicate", x)
 }
@@ -377,6 +434,7 @@ flag_duplicate.default <- function(...) {
 }
 
 
+#' @export
 flag_duplicate_2d <- function(x = NULL) {
 
   x %<>%
@@ -397,6 +455,7 @@ flag_duplicate_2d <- function(x = NULL) {
 }
 
 
+#' @export
 flag_duplicate.real_2d <- function(x = NULL) {
 
   x %<>% flag_duplicate_2d()
@@ -408,6 +467,7 @@ flag_duplicate.real_2d <- function(x = NULL) {
 }
 
 
+#' @export
 flag_duplicate.integer_2d <- function(x = NULL) {
 
   x %<>% flag_duplicate_2d()
@@ -419,6 +479,7 @@ flag_duplicate.integer_2d <- function(x = NULL) {
 }
 
 
+#' @export
 flag_duplicate.string_2d <- function(x = NULL) {
 
   x %<>% flag_duplicate_2d()
@@ -430,6 +491,7 @@ flag_duplicate.string_2d <- function(x = NULL) {
 }
 
 
+#' @export
 flag_duplicate_1d <- function(x = NULL) {
 
   x %<>%
@@ -533,12 +595,14 @@ flag_duplicate.time_1d <- function(x = NULL) {
 #'
 #' Periodicity is given as event count per los unit. The default behaviour will be events/day.
 #'
-#' @param x
+#' @param x an extracted nhic events table
+#' @param los_table episode length table
 #'
-#' @return
+#' @return an extension of x with a mutated periodicity column
 #' @export
 #'
 #' @examples
+#' flag_periodicity(x, los_table)
 flag_periodicity <- function(x, los_table = NULL) {
   UseMethod("flag_periodicity", x)
 }
@@ -556,14 +620,15 @@ flag_periodicity.default <- function(x) {
 #' @param x data item
 #' @param los_table episode length table
 #'
-#' @return
+#' @return a mutated tibble from x including a periodicity column
 #' @export
 #'
 #' @importFrom magrittr %>% %<>%
 #' @importFrom rlang .data
 #'
 #' @examples
-flag_periodicity_numeric <- function(x, los_table = NULL) {
+#' flag_periodicity(x, los_table)
+flag_periodicity_generic <- function(x, los_table = NULL) {
 
   x %<>%
 
@@ -591,7 +656,7 @@ flag_periodicity_numeric <- function(x, los_table = NULL) {
 
     # right join back into the original object
     # this will produce NAs on the following conditions: invalid LOS or no usable values
-    # NAs are also produced if the test is inappropraite i.e. 2d data
+    # NAs are also produced if the test is inappropraite i.e. 1d data
     dplyr::right_join(x, by = "episode_id")
 
   return(x)
@@ -599,9 +664,10 @@ flag_periodicity_numeric <- function(x, los_table = NULL) {
 }
 
 
+#' @export
 flag_periodicity.real_2d <- function(x, los_table = NULL) {
 
-  x <- flag_periodicity_numeric(x, los_table = los_table)
+  x <- flag_periodicity_generic(x, los_table = los_table)
 
   class(x) <- append(class(x), "real_2d", after = 0)
 
@@ -610,9 +676,10 @@ flag_periodicity.real_2d <- function(x, los_table = NULL) {
 }
 
 
+#' @export
 flag_periodicity.integer_2d <- function(x, los_table = NULL) {
 
-  x <- flag_periodicity_numeric(x, los_table = los_table)
+  x <- flag_periodicity_generic(x, los_table = los_table)
 
   class(x) <- append(class(x), "integer_2d", after = 0)
 
@@ -621,23 +688,10 @@ flag_periodicity.integer_2d <- function(x, los_table = NULL) {
 }
 
 
+#' @export
 flag_periodicity.string_2d <- function(x, los_table = NULL) {
 
-  x %<>%
-    dplyr::filter(.data$out_of_bounds == 0,
-                  .data$range_error == 0,
-                  .data$duplicate == 0) %>%
-    dplyr::group_by(.data$episode_id) %>%
-    dplyr::summarise(events = n()) %>%
-    dplyr::left_join(los_table, by = "episode_id") %>%
-    dplyr::mutate(periodicity = events/(as.numeric(los)*24)) %>%
-    dplyr::select(.data$episode_id,
-                  .data$events,
-                  .data$periodicity,
-                  .data$epi_start_dttm) %>%
-    dplyr::right_join(x, by = "episode_id")
-
-  ## label any value without a periodicity as suspicious
+  x <- flag_periodicity_generic(x, los_table = los_table)
 
   class(x) <- append(class(x), "string_2d", after = 0)
 

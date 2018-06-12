@@ -1,12 +1,13 @@
 #' Describes the coverage for reporting of a variable (S3 Generic)
 #'
-#' @param x
+#' @param x an extracted nhic dataitem
 #' @param ...
 #'
-#' @return
+#' @return a tibble describing the coverage of that dataitem over a defined time window
 #' @export
 #'
 #' @examples
+#' coverage(x, occupancy, all_cases)
 coverage <- function(x, ...) {
   UseMethod("coverage", x)
 }

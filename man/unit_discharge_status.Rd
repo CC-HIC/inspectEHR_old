@@ -7,8 +7,14 @@
 unit_discharge_status(event_table)
 }
 \arguments{
-\item{event_table}{}
+\item{event_table}{main event table}
+}
+\value{
+a tibble with unit discharge status
 }
 \description{
 pulls the discharge status
+}
+\examples{
+unit_discharge_status(events)
 }

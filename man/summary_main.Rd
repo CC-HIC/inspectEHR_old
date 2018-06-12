@@ -12,3 +12,6 @@ summary_main(x)
 \description{
 Summary for flagged data item
 }
+\examples{
+summary(x)
+}

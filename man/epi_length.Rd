@@ -8,6 +8,11 @@ epi_length(core = NULL, useDeath = TRUE)
 }
 \arguments{
 \item{core}{core table from \code{make_core()}}
+
+\item{useDeath}{logical value to determine if this calculation should include death data}
+}
+\value{
+a tibble with temporal episode figures, length of stay and a validation code
 }
 \description{
 Calculates length of stay from:

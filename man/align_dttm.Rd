@@ -22,3 +22,6 @@ a tibble
 This function takes two fields that are perfectly disjoint with NAs and combines them into 1
 This is useful where you have details like date and time of death stored in different columns
 }
+\examples{
+align_dttm(tble, date, time, key)
+}
