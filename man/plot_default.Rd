@@ -4,7 +4,7 @@
 \alias{plot_default}
 \title{Default Plot}
 \usage{
-plot_default(x, code_name)
+plot_default(x, code_name, all_sites.col)
 }
 \arguments{
 \item{code_name}{}

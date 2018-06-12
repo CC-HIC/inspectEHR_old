@@ -10,7 +10,7 @@
 #'
 #' @examples
 #' summary(x)
-summary_main <- function(x) {
+summary_main <- function(x, reference) {
 
   dl <- vector(mode = "list", length = 2)
   names(dl) <- c("error_checks", "missingness")
@@ -45,7 +45,7 @@ summary_main <- function(x) {
   if (any(grepl("1d", class(x)))) {
 
     dl[["missingness"]] <- x %>%
-      missingness()
+      missingness(reference)
 
   } else {
 
@@ -77,7 +77,7 @@ summary_main <- function(x) {
 #'
 #' @examples
 #' missingness(df)
-missingness <- function(x) {
+missingness <- function(x, reference) {
 
   x <- x %>%
     dplyr::filter(.data$range_error == 0 | is.na(.data$range_error),

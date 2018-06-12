@@ -4,7 +4,7 @@
 \alias{missingness}
 \title{Check for 1d Missingness}
 \usage{
-missingness(x)
+missingness(x, reference)
 }
 \arguments{
 \item{x}{}

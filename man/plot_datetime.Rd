@@ -4,7 +4,7 @@
 \alias{plot_datetime}
 \title{Plot Datetime}
 \usage{
-plot_datetime(x, code_name)
+plot_datetime(x, code_name, all_sites.col)
 }
 \arguments{
 \item{code_name}{}

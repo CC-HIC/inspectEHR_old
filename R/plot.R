@@ -8,7 +8,7 @@
 #' @export
 #'
 #' @return A tibble 1 row per event
-plot_hic <- function(x, path_name = NULL) {
+plot_hic <- function(x, path_name = NULL, all_sites.col) {
 
   if (nrow(x) != 0) {
 
@@ -16,17 +16,20 @@ plot_hic <- function(x, path_name = NULL) {
     code_name <- attr(x, "code_name")
     data_class <- class(x)[1]
 
+    # These switching statements have been put in for when plots start
+    # to diverge
+
     perfect_plot <- data_class %>%
       base::switch(
-        integer_1d = plot_default(x, code_name = code_name),
-        integer_2d = plot_default(x, code_name = code_name),
-           real_1d = plot_default(x, code_name = code_name),
-           real_2d = plot_default(x, code_name = code_name),
-         string_1d = plot_default(x, code_name = code_name),
-         string_2d = plot_default(x, code_name = code_name),
-       datetime_1d = plot_datetime(x, code_name = code_name),
-           date_1d = plot_date(x, code_name = code_name),
-           time_1d = plot_time(x, code_name = code_name))
+        integer_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+        integer_2d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+           real_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+           real_2d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+         string_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+         string_2d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+       datetime_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+           date_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
+           time_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col))
 
   if (!is.null(path_name)) {
 
@@ -41,7 +44,7 @@ plot_hic <- function(x, path_name = NULL) {
   # Check to see if there is a 2d component, and if so plot periodicity
   if (any(grepl("2d", class(x)))) {
 
-    periodicity_plot <- plot_periodicity(x, code_name)
+    periodicity_plot <- plot_periodicity(x, code_name, all_sites.col = all_sites.col)
 
   if (!is.null(path_name)) {
 
@@ -99,11 +102,11 @@ plot_hic <- function(x, path_name = NULL) {
 #' @importFrom magrittr %>%
 #'
 #' @examples
-plot_default <- function(x, code_name) {
+plot_default <- function(x, code_name, all_sites.col) {
 
   if (code_name %in% categorical_hic) {
 
-    perfect_plot <- plot_histogram(x, code_name)
+    perfect_plot <- plot_histogram(x, code_name, all_sites.col)
 
   } else {
 
@@ -141,7 +144,7 @@ plot_default <- function(x, code_name) {
 #' @importFrom scales percent_format
 #'
 #' @examples
-plot_histogram <- function(x, code_name) {
+plot_histogram <- function(x, code_name, all_sites.col) {
 
   perfect_plot <- x %>%
     dplyr::filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
@@ -187,14 +190,14 @@ plot_histogram <- function(x, code_name) {
 #' @importFrom magrittr %>%
 #'
 #' @examples
-plot_periodicity <- function(x, code_name) {
+plot_periodicity <- function(x, code_name, all_sites.col) {
 
   periodicity_plot <- x %>%
     filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
            .data$duplicate == 0 | is.na(.data$duplicate),
            .data$range_error == 0 | is.na(.data$range_error)) %>%
     distinct(.data$site, .data$periodicity) %>%
-    filter(.data$periodcity <= 48) %>%
+    filter(.data$periodicity <= 48) %>%
     ggplot(
       aes_string(x = "periodicity",
            colour = "site")) +
@@ -221,7 +224,7 @@ plot_periodicity <- function(x, code_name) {
 #' @importFrom magrittr %>%
 #'
 #' @examples
-plot_date <- function(x, code_name) {
+plot_date <- function(x, code_name, all_sites.col) {
 
   date_plot <- x %>%
     filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
@@ -254,7 +257,7 @@ plot_date <- function(x, code_name) {
 #' @importFrom magrittr %>%
 #'
 #' @examples
-plot_datetime <- function(x, code_name) {
+plot_datetime <- function(x, code_name, all_sites.col) {
 
   datetime_plot <- x %>%
     filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
@@ -287,7 +290,7 @@ plot_datetime <- function(x, code_name) {
 #' @importFrom magrittr %>%
 #'
 #' @examples
-plot_time <- function(x, code_name) {
+plot_time <- function(x, code_name, all_sites.col) {
 
   time_plot <- x %>%
     filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),

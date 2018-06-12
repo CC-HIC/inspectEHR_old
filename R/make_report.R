@@ -204,16 +204,20 @@ make_report <- function(database = "lenient_dev",
       flag_all(episode_length)
 
     # Plotting
-    plot_hic(temp_df, path_name)
+    try(plot_hic(temp_df, path_name, all_sites.col))
+
+    print(paste0("finished plotting: ", hic_codes[i]))
 
     #Saving errors outside the main list
-    hic_event_summary[[hic_codes[i]]] <- summary_main(temp_df)
+    try(hic_event_summary[[hic_codes[i]]] <- summary_main(temp_df, reference))
 
-    hic_event_validation[[hic_codes[i]]] <- validate_event(validated_episodes, temp_df)
+    try(hic_event_validation[[hic_codes[i]]] <- validate_event(validated_episodes, temp_df))
+
+    print(paste0("finished validating: ", hic_codes[i]))
 
     rm(temp_df)
 
-    print(paste0("finished ", hic_codes[i]))
+    print(paste0("totally finished: ", hic_codes[i]))
 
     setTxtProgressBar(pb, i)
 
@@ -223,7 +227,9 @@ make_report <- function(database = "lenient_dev",
 
   print("Finished Event Level Evaluation")
 
-  save.image(file = paste0(path_name, "working_data/report_data.RData"))
+  save(hic_event_summary, file = paste0(path_name, "working_data/hic_event_summary.RData"))
+  save(hic_event_validation, file = paste0(path_name, "working_data/hic_event_validation.RData"))
+
 
 }
 

@@ -4,7 +4,7 @@
 \alias{plot_periodicity}
 \title{Plot periodicity}
 \usage{
-plot_periodicity(x, code_name)
+plot_periodicity(x, code_name, all_sites.col)
 }
 \arguments{
 \item{code_name}{}

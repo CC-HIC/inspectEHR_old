@@ -4,7 +4,7 @@
 \alias{plot_hic}
 \title{Plot NHIC Events}
 \usage{
-plot_hic(x, path_name = NULL)
+plot_hic(x, path_name = NULL, all_sites.col)
 }
 \arguments{
 \item{x}{flagged table}

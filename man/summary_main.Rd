@@ -4,7 +4,7 @@
 \alias{summary_main}
 \title{Summary for flagged data item}
 \usage{
-summary_main(x)
+summary_main(x, reference)
 }
 \arguments{
 \item{x}{}

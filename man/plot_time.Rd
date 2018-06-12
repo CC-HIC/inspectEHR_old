@@ -4,7 +4,7 @@
 \alias{plot_time}
 \title{Plot Time}
 \usage{
-plot_time(x, code_name)
+plot_time(x, code_name, all_sites.col)
 }
 \arguments{
 \item{code_name}{}

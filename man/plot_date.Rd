@@ -4,7 +4,7 @@
 \alias{plot_date}
 \title{Plot Date}
 \usage{
-plot_date(x, code_name)
+plot_date(x, code_name, all_sites.col)
 }
 \arguments{
 \item{code_name}{}
