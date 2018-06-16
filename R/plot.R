@@ -200,7 +200,8 @@ plot_periodicity <- function(x, code_name, all_sites.col) {
     filter(.data$periodicity <= 48) %>%
     ggplot(
       aes_string(x = "periodicity",
-           colour = "site")) +
+           colour = "site",
+           fill = "site")) +
     scale_colour_manual(values = all_sites.col) +
     geom_histogram() +
     xlab(code_name) +
