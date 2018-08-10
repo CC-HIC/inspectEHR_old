@@ -4,21 +4,18 @@
 \alias{make_reference}
 \title{Make reference Table}
 \usage{
-make_reference(episodes, provenance)
+make_reference(connection)
 }
 \arguments{
-\item{episodes}{collected episode table}
-
-\item{provenance}{collected provenance table}
+\item{connection}{a database connection}
 }
 \value{
 a tibble with episode level data with site
 }
 \description{
-makes the reference table used as the basis for many local (non-database) functions
-This is to facilitate grouping by site, as this is not present in the
-episode table
+Makes the reference table used my many functions in this package.
+This is part of the basic setup.
 }
 \examples{
-make_reference(episodes, provenance)
+make_reference(ctn)
 }

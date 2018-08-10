@@ -12,22 +12,23 @@
 #' @examples
 #' plot_heatcal(episodes, provenance, "UCL")
 #' plot_heatcal(episodes, provenance, "UCL", "~/some/path/plot.png")
-plot_heatcal <- function(episodes = NULL,
-                         provenance = NULL,
+plot_heatcal <- function(reference_table = NULL,
                          site = NULL,
-                         filename = NULL) {
+                         filename = NULL,
+                         start_date = "2014-01-01",
+                         end_date = "2018-01-01") {
 
-  retrieve_unique_cases(episodes, provenance) %>%
-  report_cases_byday(bysite = site) %>%
-  create_calendar() -> calendar
+  calendar_template <- reference_table %>%
+  daily_admssions(by_site = site) %>%
+  create_calendar_template(start_date = start_date, end_date = end_date)
 
-  calendar %>%
-    create_grid() -> Grid
+  calendar_grid <- calendar_template %>%
+    create_grid()
 
   if (is.null(filename)) {
 
-    ggHeatCal(x = calendar,
-              gridLines = Grid,
+    ggHeatCal(x = calendar_template,
+              gridLines = calendar_grid,
               Title = paste0("Admission Calendar Heatmap for " , site)) -> Plot
 
   return(Plot)
@@ -36,18 +37,13 @@ plot_heatcal <- function(episodes = NULL,
 
     ggsave(
       ggHeatCal(x = calendar,
-                gridLines = Grid,
+                gridLines = calendar_grid,
                 Title = paste0("Admission Calendar Heatmap for " , site)),
       filename = filename)
 
   }
 
 }
-
-
-
-
-
 
 
 #' Find First Sunday
@@ -57,7 +53,6 @@ plot_heatcal <- function(episodes = NULL,
 #' @param x a vector of class date
 #'
 #' @return a vector with dates for the first sunday of each year supplied to x
-#' @export
 #'
 #' @importFrom lubridate floor_date wday days
 #'
@@ -73,24 +68,31 @@ find_first_sunday <- function(x) {
 }
 
 
-#' Create A Heat Map Calender
+#' Create a Calendar Template for Count Data
 #'
-#' creates the basic template for a heatmap calendar in ggplop
+#' Creates the basic template for a heatmap calendar in ggplot
+#' when using count data. The calendar will automatically expand
+#' the date contrains to full years
 #'
 #' @param start_date a starting date as character vector of format YYYY/MM/DD
 #' @param end_date an end date as character vector of format YYYY/MM/DD
 #' @param x count data to be used in the calendar
+#'   \describe{
+#'     \item{date}{date column formatted to a POSIX date}
+#'     \item{count_column}{counting column of integer type}
+#'   }
 #'
 #' @return a tibble with correct week alignments for a calendar heatmap
 #' @export
 #'
 #' @importFrom lubridate floor_date ceiling_date ymd year month
+#' @importFrom dplyr tibble mutate left_join
 #'
 #' @examples
-#' sample_data <- create_calendar(myData, "2014-01-01", "2018-01-01")
-create_calendar <- function(x = NULL,
-                   start_date = "2014-01-01",
-                     end_date = "2018-01-01") {
+#' sample_data <- create_calendar_template(myData, "2014-01-01", "2018-01-01")
+create_calendar_template <- function(x = NULL,
+                                     start_date = "2014-01-01",
+                                     end_date = "2018-01-01") {
 
   first_date <- floor_date(ymd(start_date), unit = "years")
   last_date <- ceiling_date(ymd(end_date), unit = "years") - 1
@@ -148,6 +150,14 @@ create_calendar <- function(x = NULL,
 
 }
 
+#' Create Calendar Grid
+#'
+#' @param calendar_template
+#'
+#' @return a grid for assembling a ggheatcal
+#' @importFrom dplyr select mutate lead lag distinct
+#'
+#' @examples
 create_grid <- function(calendar_template = NULL) {
 
   template <- calendar_template %>%
@@ -243,6 +253,21 @@ create_grid <- function(calendar_template = NULL) {
 }
 
 
+#' Plot Calendar Heatmap - Ggplot layers
+#'
+#' layer building function of plot_heatmap
+#'
+#' @param x
+#' @param gridLines
+#' @param Title title of the final plot
+#'
+#' @return a ggplot2 object
+#'
+#' @importFrom ggplot2 ggplot geom_tile scale_fill_gradientn facet_grid
+#' theme_minimal theme element_blank element_text geom_segment aes labs
+#' ylab xlab coord_equal
+#'
+#' @examples
 ggHeatCal <- function(x, gridLines, Title) {
 
   x %>%

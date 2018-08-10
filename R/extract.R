@@ -29,15 +29,16 @@ extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 
   # extract chosen input variable from the core table
   extracted_table <- dataitem %>%
-    base::switch(integer_1d = extract_1d(core_table, input, data_location = "integer"),
-                 integer_2d = extract_2d(core_table, input, data_location = "integer"),
-                    real_1d = extract_1d(core_table, input, data_location = "real"),
-                    real_2d = extract_2d(core_table, input, data_location = "real"),
-                  string_1d = extract_1d(core_table, input, data_location = "string"),
-                  string_2d = extract_2d(core_table, input, data_location = "string"),
-                datetime_1d = extract_1d(core_table, input, data_location = "datetime"),
-                    date_1d = extract_1d(core_table, input, data_location = "date"),
-                    time_1d = extract_1d(core_table, input, data_location = "time"))
+    base::switch(
+      integer_1d = extract_1d(core_table, input, data_location = "integer"),
+      integer_2d = extract_2d(core_table, input, data_location = "integer"),
+      real_1d = extract_1d(core_table, input, data_location = "real"),
+      real_2d = extract_2d(core_table, input, data_location = "real"),
+      string_1d = extract_1d(core_table, input, data_location = "string"),
+      string_2d = extract_2d(core_table, input, data_location = "string"),
+      datetime_1d = extract_1d(core_table, input, data_location = "datetime"),
+      date_1d = extract_1d(core_table, input, data_location = "date"),
+      time_1d = extract_1d(core_table, input, data_location = "time"))
 
   class(extracted_table) <- append(class(extracted_table), dataitem, after = 0)
 
@@ -53,11 +54,12 @@ extract <- function(core_table = NULL, input = "NIHR_HIC_ICU_0557") {
 #' This function extracts the correct column from the CC-HIC database
 #' depending upon what type of data is called for
 #'
-#' @param core_table
-#' @param input
-#' @param data_location the column name that stores the primary data for this variable
+#' @param core_table the core table from make_core
+#' @param input the HIC code for the variable of interest
+#' @param data_location the column name that stores the primary data for this
+#' variable
 #'
-#' @return
+#' @return a tibble with HIC data for a specified variable
 #' @export
 #'
 #' @importFrom rlang .data !! sym enquo
@@ -95,7 +97,8 @@ extract_1d <- function(core_table = NULL, input = NULL, data_location = NULL) {
 #'
 #' @param core_table a core table
 #' @param input the input variable of choice
-#' @param data_location the column name that stores the primary data for this variable
+#' @param data_location the column name that stores the primary data for this
+#' variable
 #'
 #' @return
 #' @export
@@ -122,6 +125,13 @@ extract_2d <- function(core_table = NULL, input = NULL, data_location = NULL) {
     dplyr::rename(value = !! quo_column,
                   internal_id = .data$event_id) %>%
     dplyr::arrange(.data$episode_id, .data$datetime)
+
+  if (attributes(core_table$src$con)$class[1] == "SQLiteConnection") {
+
+    extracted_table <- extracted_table %>%
+      mutate(datetime = lubridate::as_datetime(datetime))
+
+  }
 
   return(extracted_table)
 

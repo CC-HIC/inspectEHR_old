@@ -21,4 +21,4 @@ simple_type <- xml_find_all(hic_schema, xpath = "//xs:simpleType")
 categorical_hic <- sapply(X = simple_type, FUN = xml_attr, attr = "name") %>%
   str_sub(end = -12L)
 
-devtools::use_data(categorical_hic, preserved_classes, internal = FALSE, overwrite = TRUE)
+devtools::use_data(qref, categorical_hic, preserved_classes, internal = TRUE, overwrite = TRUE)

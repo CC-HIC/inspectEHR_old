@@ -67,13 +67,10 @@ ks_plot <- function(x) {
       aes(
         x = .data$Site_A, y = .data$Site_B, fill = .data$p.value)) +
     geom_tile() +
-    scale_x_discrete(limits=c("cambridge", "gstt", "imperial", "ucl", "oxford")) +
-    scale_y_discrete(limits=c("cambridge", "gstt", "imperial", "ucl", "oxford"))
+    scale_x_discrete(limits=all_sites) +
+    scale_y_discrete(limits=all_sites)
 
   return(x)
 
 }
-
-
-
 

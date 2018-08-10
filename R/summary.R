@@ -7,6 +7,8 @@
 #'
 #' @importFrom magrittr %>% %<>%
 #' @importFrom rlang .data
+#' @importFrom dplyr group_by summarise full_join
+#' @importFrom tidyr gather
 #'
 #' @examples
 #' summary(x)
@@ -19,23 +21,23 @@ summary_main <- function(x, reference) {
     group_by(.data$site) %>%
     summarise(
       early_event = sum(
-        ifelse(.data$out_of_bounds == -1, 1L, 0L), na.rm = TRUE),
+        ifelse(.data$out_of_bounds == 101, 1L, 0L), na.rm = TRUE),
       late_event = sum(
-        ifelse(.data$out_of_bounds == 1, 1L, 0L), na.rm = TRUE))
+        ifelse(.data$out_of_bounds == 102, 1L, 0L), na.rm = TRUE))
 
   range <- x %>%
     group_by(.data$site) %>%
     summarise(
       low_value = sum(
-        ifelse(.data$range_error == -1, 1L, 0L), na.rm = TRUE),
+        ifelse(.data$range_error == 103, 1L, 0L), na.rm = TRUE),
       high_value = sum(
-        ifelse(.data$range_error == 1, 1L, 0L), na.rm = TRUE))
+        ifelse(.data$range_error == 104 | .data$range_error == 105, 1L, 0L), na.rm = TRUE))
 
   dup <- x %>%
     group_by(.data$site) %>%
     summarise(
       duplicate_events = sum(
-        ifelse(.data$duplicate == 1, 1L, 0L), na.rm = TRUE))
+        ifelse(.data$duplicate == 106, 1L, 0L), na.rm = TRUE))
 
   dl[["error_checks"]] <- bounds %>%
     full_join(range, by = "site") %>%

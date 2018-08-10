@@ -1,75 +1,75 @@
 #' Plot NHIC Events
 #'
-#' Plots NHIC events in a predetermined way and output to the plot folder specified
+#' Plots NHIC events in a predetermined way and output to the plot folder
+#' specified
 #'
 #' @param x flagged table
 #'
 #' @importFrom rlang .data
+#' @importFrom ggplot2 ggsave
 #' @export
 #'
 #' @return A tibble 1 row per event
 plot_hic <- function(x, path_name = NULL, all_sites.col) {
 
-  if (nrow(x) != 0) {
+  if (is.null(path_name)) stop("please supply a path name")
 
-    # Identify the correct column type to pull out
-    code_name <- attr(x, "code_name")
-    data_class <- class(x)[1]
+  # Identify the correct column type to pull out
+  code_name <- attr(x, "code_name")
 
-    # These switching statements have been put in for when plots start
-    # to diverge
+  data_class <- qref %>%
+    filter(code_name == code_name) %>%
+    select(class) %>%
+    pull()
 
-    perfect_plot <- data_class %>%
-      base::switch(
-        integer_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-        integer_2d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-           real_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-           real_2d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-         string_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-         string_2d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-       datetime_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-           date_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col),
-           time_1d = plot_default(x, code_name = code_name, all_sites.col = all_sites.col))
+  if (nrow(x) != 0)  {
 
-  if (!is.null(path_name)) {
+    if (!(code_name %in% paste0(
+      "NIHR_HIC_ICU_0", c(
+        "001", "002", "003", "004", "005", "399", "088", "912")))) {
 
-    ggsave(
-      plot = perfect_plot,
-      filename = paste0(
-        path_name, "plots/", code_name, "_main.png"),
-      dpi = 300, width = 10, units = "in")
+      primary_plot <- plot_default(
+        x,
+        code_name = code_name,
+        all_sites.col = all_sites.col)
 
-  }
+      ggplot2::ggsave(
+        plot = primary_plot,
+        filename = paste0(
+          path_name, "plots/", code_name, "_main.png"),
+        dpi = 300, width = 10, units = "in")
 
-  # Check to see if there is a 2d component, and if so plot periodicity
-  if (any(grepl("2d", class(x)))) {
+      secondary_plot <- plot_default(
+        x, code_name = code_name, all_sites.col = all_sites.col)
 
-    periodicity_plot <- plot_periodicity(x, code_name, all_sites.col = all_sites.col)
+      ggplot2::ggsave(
+        plot = primary_plot,
+        filename = paste0(
+          path_name, "plots/", code_name, "_main.png"),
+        dpi = 300, width = 10, units = "in")
 
-  if (!is.null(path_name)) {
+      # Check to see if there is a 2d component, and if so plot periodicity
+      if (any(grepl("2d", class(x)))) {
 
-    ggsave(
-      plot = periodicity_plot,
-  filename = paste0(
-      path_name, "plots/", code_name, "_periodicity.png"),
-  dpi = 300, width = 10, units = "in")
+        periodicity_plot <- plot_periodicity(x, code_name,
+                                             all_sites.col = all_sites.col)
 
-  }
+        ggplot2::ggsave(
+          plot = periodicity_plot,
+          filename = paste0(
+            path_name, "plots/", code_name, "_periodicity.png"),
+          dpi = 300, width = 10, units = "in")
 
-  }
-
+      }
+    }
   } else {
 
-    cat("/n", "/n",
+    cat("\n",
         attr(x, "code_name"),
-        " contains no data and will be skipped",
-        "/n")
+        "contains no data and will be skipped",
+        "\n")
 
   }
-
-  # debugging only
-  return(perfect_plot)
-
 }
 
 # retired function
@@ -100,28 +100,30 @@ plot_hic <- function(x, path_name = NULL, all_sites.col) {
 #'
 #' @importFrom rlang .data
 #' @importFrom magrittr %>%
+#' @importFrom ggplot2 ggplot aes_string scale_fill_manual geom_density
+#' xlab ylab theme_minimal
 #'
 #' @examples
 plot_default <- function(x, code_name, all_sites.col) {
 
   if (code_name %in% categorical_hic) {
 
-    perfect_plot <- plot_histogram(x, code_name, all_sites.col)
+    perfect_plot <- plot_histogram_percent(x, code_name, all_sites.col)
 
   } else {
 
     perfect_plot <- x %>%
-      filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+      dplyr::filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
              .data$duplicate == 0 | is.na(.data$duplicate),
              .data$range_error == 0 | is.na(.data$range_error)) %>%
-      ggplot(
-        aes_string(x = "value",
-                   colour = "site")) +
-      scale_colour_manual(values = all_sites.col) +
-      geom_density() +
-      xlab(code_name) +
-      ylab("Population Density") +
-      theme_minimal()
+      ggplot2::ggplot(
+        ggplot2::aes_string(x = "value",
+                   fill = "site")) +
+      ggplot2::scale_fill_manual(values = all_sites.col) +
+      ggplot2::geom_density(alpha = 0.8) +
+      ggplot2::xlab(code_name) +
+      ggplot2::ylab("Population Density") +
+      ggplot2::theme_minimal()
 
   }
 
@@ -142,36 +144,37 @@ plot_default <- function(x, code_name, all_sites.col) {
 #' @importFrom magrittr %>%
 #' @importFrom tidyr complete
 #' @importFrom scales percent_format
+#' @importFrom ggplot2 ggplot aes_string geom_bar scale_fill_manual
+#' scale_y_continuous xlab ylab theme_minimal aes
 #'
 #' @examples
-plot_histogram <- function(x, code_name, all_sites.col) {
+plot_histogram_percent <- function(x, code_name, all_sites.col) {
 
   perfect_plot <- x %>%
     dplyr::filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
            .data$duplicate == 0 | is.na(.data$duplicate),
            .data$range_error == 0 | is.na(.data$range_error)) %>%
-    dplyr::select(site, value) %>%
-    dplyr::group_by(site, value) %>%
+    dplyr::select(.data$site, .data$value) %>%
+    dplyr::group_by(.data$site, .data$value) %>%
     dplyr::count() %>%
     dplyr::ungroup() %>%
-    dplyr::group_by(site) %>%
+    dplyr::group_by(.data$site) %>%
     dplyr::mutate(total = sum(n)) %>%
     dplyr::ungroup() %>%
     tidyr::complete(site, value) %>%
-    ggplot(
-      aes(x = value,
-       fill = site)
-    ) +
-    geom_bar(
-      aes(y = n/total),
+    ggplot2::ggplot(
+      ggplot2::aes_string(x = "value",
+                 fill = "site")) +
+    ggplot2::geom_bar(
+      ggplot2::aes(y = n/total),
       position = "dodge",
       stat = "identity",
       width = 0.8) +
-    scale_fill_manual(values = all_sites.col) +
-    scale_y_continuous(labels = scales::percent_format()) +
-    xlab(code_name) +
-    ylab("Percentage by BRC") +
-    theme_minimal()
+    ggplot2::scale_fill_manual(values = all_sites.col) +
+    ggplot2::scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2::xlab(code_name) +
+    ggplot2::ylab("Percentage by BRC") +
+    ggplot2::theme_minimal()
 
   return(perfect_plot)
 
@@ -188,25 +191,27 @@ plot_histogram <- function(x, code_name, all_sites.col) {
 #'
 #' @importFrom rlang .data
 #' @importFrom magrittr %>%
+#' @importFrom dplyr filter distinct
+#' @importFrom ggplot2 ggplot aes_string scale_fill_manual xlab ylab
+#' theme_minimal geom_histogram
 #'
 #' @examples
 plot_periodicity <- function(x, code_name, all_sites.col) {
 
   periodicity_plot <- x %>%
-    filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
+    dplyr::filter(.data$out_of_bounds == 0 | is.na(.data$out_of_bounds),
            .data$duplicate == 0 | is.na(.data$duplicate),
            .data$range_error == 0 | is.na(.data$range_error)) %>%
-    distinct(.data$site, .data$periodicity) %>%
-    filter(.data$periodicity <= 48) %>%
-    ggplot(
-      aes_string(x = "periodicity",
-           colour = "site",
+    dplyr::distinct(.data$site, .data$periodicity) %>%
+    dplyr::filter(.data$periodicity <= 48) %>%
+    ggplot2::ggplot(
+      ggplot2::aes_string(x = "periodicity",
            fill = "site")) +
-    scale_colour_manual(values = all_sites.col) +
-    geom_histogram() +
-    xlab(code_name) +
-    ylab("Population Density") +
-    theme_minimal()
+    ggplot2::scale_fill_manual(values = all_sites.col) +
+    ggplot2::geom_histogram() +
+    ggplot2::xlab(code_name) +
+    ggplot2::ylab("Population Density") +
+    ggplot2::theme_minimal()
 
   return(periodicity_plot)
 
@@ -233,9 +238,9 @@ plot_date <- function(x, code_name, all_sites.col) {
            .data$range_error == 0 | is.na(.data$range_error)) %>%
     ggplot(
       aes_string(x = "date",
-            colour = "site",
+            fill = "site",
                  y = "value")) +
-    scale_colour_manual(values = all_sites.col) +
+    scale_fill_manual(values = all_sites.col) +
     geom_line() +
     xlab("date") +
     ylab(code_name) +
@@ -266,9 +271,9 @@ plot_datetime <- function(x, code_name, all_sites.col) {
            .data$range_error == 0 | is.na(.data$range_error)) %>%
     ggplot(
       aes_string(x = "datetime",
-            colour = "site",
+            fill = "site",
                  y = "value")) +
-    scale_colour_manual(values = all_sites.col) +
+    scale_fill_manual(values = all_sites.col) +
     geom_line() +
     xlab("datetime") +
     ylab(code_name) +
@@ -299,9 +304,9 @@ plot_time <- function(x, code_name, all_sites.col) {
            .data$range_error == 0 | is.na(.data$range_error)) %>%
     ggplot(
       aes_string(x = "time",
-            colour = "site",
+            fill = "site",
                  y = "value")) +
-    scale_colour_manual(values = all_sites.col) +
+    scale_fill_manual(values = all_sites.col) +
     geom_line() +
     xlab("time") +
     ylab(code_name) +
@@ -349,7 +354,8 @@ plot_time <- function(x, code_name, all_sites.col) {
 #
 #   temp_cal %>%
 #     ggplot() +
-#     geom_tile(aes(x = week_of_year, y = day_of_week, fill = episodes), colour = "#FFFFFF") +
+#     geom_tile(
+#       aes(x = week_of_year, y = day_of_week, fill = episodes), colour = "#FFFFFF") +
 #     scale_fill_gradientn(colors = c("#B5E384", "#FFFFBD", "#FFAE63", "#D61818"), na.value = "grey90") +
 #     facet_grid(year~.) +
 #     geom_text(aes(x = x, y = y, label = text), colour = "red", data = invalids) +

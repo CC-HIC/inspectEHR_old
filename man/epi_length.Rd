@@ -4,7 +4,7 @@
 \alias{epi_length}
 \title{Calculate Episode Length}
 \usage{
-epi_length(core = NULL, useDeath = TRUE)
+epi_length(core_table, reference_table = NULL, events_table = NULL)
 }
 \arguments{
 \item{core}{core table from \code{make_core()}}
@@ -15,17 +15,21 @@ epi_length(core = NULL, useDeath = TRUE)
 a tibble with temporal episode figures, length of stay and a validation code
 }
 \description{
-Calculates length of stay from:
+There are several ways to potentially define the end of an episode.
+This algorithm performs a stepwise search to define the episode
+end from:
 \itemize{
-  \item episode start date time: NHIC 0411
-  \item episode end date timeL NHIC 0412
-  \item date of in unit death: NHIC 0042
-  \item time of in unit death: NHIC 0043
+  \item episode end date time: 0412
+  \item date and time of in unit death: 0042 and 0043
+  \item date and time of brainstem death: 0044 and 0045
+  \item date and time of body removed: 0038 and 0039
 }
-For cases where there is a discharge date, time and death date and time, we use the
-mortality data if this occurs earlier than the discharge data.
 }
 \details{
+If date and time of death preceed the discharge time (which may
+in principle only be administrative) we overright the episode
+end datetime with the death details
+
 Validation is coded as follows:
 \itemize{
   \item 0: episode validates as ok
@@ -34,5 +38,5 @@ Validation is coded as follows:
 }
 }
 \examples{
-epi_length(core, reference)
+epi_length(reference, tbls[["events"]])
 }

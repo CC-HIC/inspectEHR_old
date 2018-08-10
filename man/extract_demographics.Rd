@@ -2,20 +2,20 @@
 % Please edit documentation in R/extract_demographics.R
 \name{extract_demographics}
 \alias{extract_demographics}
-\title{Extract non-time series data from CC-HIC}
+\title{Extract 1d data from CC-HIC}
 \usage{
 extract_demographics(metadata = NULL, events = NULL)
 }
 \arguments{
-\item{metadata}{An uncollected postgres metadata table}
+\item{metadata}{a database metadata table}
 
-\item{events}{An uncollected postgres events table}
+\item{events}{a database events table}
 }
 \value{
-A tibble of non time series data in the same form as \code{events}
+A tibble of 1d data
 }
 \description{
-Extract non-time series data from CC-HIC
+Extract 1d data from CC-HIC
 }
 \examples{
 extract_demographics(metadata, events)

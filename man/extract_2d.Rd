@@ -11,7 +11,8 @@ extract_2d(core_table = NULL, input = NULL, data_location = NULL)
 
 \item{input}{the input variable of choice}
 
-\item{data_location}{the column name that stores the primary data for this variable}
+\item{data_location}{the column name that stores the primary data for this
+variable}
 }
 \description{
 This function extracts the correct column from the CC-HIC database

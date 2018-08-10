@@ -124,30 +124,32 @@ flag_range <- function(x = NULL) {
 
 
 flag_range.default <- function(...) {
-
   print("there are no methods for this class")
-
 }
 
 
 #' Flag Range Numeric
 #'
 #' The generic function for numeric type range flags
+#' Retuns 103 if value too low, 104 if value too high, and NA if
+#' there is no reference for ranges
 #'
 #' @param x
 #'
 #' @export
 #'
-#' @importFrom magrittr %>% %<>%
+#' @importFrom magrittr %>%
 #' @importFrom rlang .data !!
+#' @example
+#' flag_range_numeric(df)
 flag_range_numeric <- function(x = NULL) {
 
   # joins to the quality refernce table to identify range errors
-  x %<>%
+  x <- x %>%
     dplyr::left_join(qref, by = "code_name") %>%
     dplyr::mutate(
-      range_error = ifelse(.data$value > .data$range_max, 1L,
-                    ifelse(.data$value < .data$range_min, -1L, 0L))) %>%
+      range_error = if_else(.data$value > .data$range_max, 104L,
+                    if_else(.data$value < .data$range_min, 103L, 0L))) %>%
     dplyr::select(.data$internal_id, .data$range_error)
 
   return(x)
@@ -161,9 +163,7 @@ flag_range_numeric <- function(x = NULL) {
 flag_range.real_2d <- function(x = NULL) {
 
   x %<>% flag_range_numeric()
-
   class(x) <- append(class(x), "real_2d", after = 0)
-
   return(x)
 
 }
@@ -175,9 +175,7 @@ flag_range.real_2d <- function(x = NULL) {
 flag_range.real_1d <- function(x = NULL) {
 
   x %<>% flag_range_numeric()
-
   class(x) <- append(class(x), "real_1d", after = 0)
-
   return(x)
 
 }
@@ -189,9 +187,7 @@ flag_range.real_1d <- function(x = NULL) {
 flag_range.integer_2d <- function(x = NULL) {
 
   x %<>% flag_range_numeric()
-
   class(x) <- append(class(x), "integer_2d", after = 0)
-
   return(x)
 
 }
@@ -203,21 +199,25 @@ flag_range.integer_2d <- function(x = NULL) {
 flag_range.integer_1d <- function(x = NULL) {
 
   x %<>% flag_range_numeric()
-
   class(x) <- append(class(x), "integer_1d", after = 0)
-
   return(x)
 
 }
 
 
+#' Flag Range String
+#'
+#' Returns 105 if string value is outside enumerated list
+#'
 #' @export
 #' @importFrom magrittr %>% %<>%
 #' @importFrom rlang .data !!
 #' @importFrom stringr str_length
 flag_range.string_2d <- function(x = NULL) {
 
-  # Checks to see if this is micodata, and if so aborts
+  # note, there are only 2 strings in the db that are 2d -> bugs and airway
+
+  # Checks to see if this is microdata, and if so aborts
   if (attr(x, "code_name") == "NIHR_HIC_ICU_0187") {
 
     x %<>%
@@ -226,19 +226,15 @@ flag_range.string_2d <- function(x = NULL) {
 
   } else {
 
-    # Checks if string length > 2 as these are no string values in the schema
-    # that exceed 2. This is a quick workaround till we find an efficient way
-    # to bring in the schema definition
+  # The only other possibility is airway data
     x %<>%
       dplyr::mutate(
-        range_error = ifelse(
-          stringr::str_length(value) <= 2, 0L, 1L)) %>%
+        range_error = ifelse(value %in% c("E", "N", "T"), 0L, 105L)) %>%
       dplyr::select(.data$internal_id, .data$range_error)
 
   }
 
   class(x) <- append(class(x), "string_2d", after = 0)
-
   return(x)
 
 }
@@ -247,16 +243,99 @@ flag_range.string_2d <- function(x = NULL) {
 #' @export
 #' @importFrom magrittr %>% %<>%
 #' @importFrom rlang .data !!
+#' @importFrom tidyr unnest
 flag_range.string_1d <- function(x = NULL) {
 
-  # Checks if string length > 2 as these are no string values in the schema
-  # that exceed 2. This is a quick workaround till we find an efficient way
-  # to bring in the schema definition
-  x %<>%
-    dplyr::mutate(
-      range_error = ifelse(
-        stringr::str_length(value) <= 2, 0L, 1L)) %>%
-    dplyr::select(.data$internal_id, .data$range_error)
+  flags_applied <- FALSE
+
+  code_name <- attr(x, "code_name")
+  quo_codename <- enquo(code_name)
+
+  row_count <- qref %>%
+    filter(.data$code_name == !! quo_codename,
+           .data$possible_values != "NULL") %>%
+    nrow()
+
+  if (row_count == 1) {
+
+    # This handles the majority of string enumerated cases
+
+    possible_values <- qref %>%
+      filter(.data$code_name == !! quo_codename) %>%
+      select(.data$possible_values) %>%
+      unnest() %>%
+      select(.data$possible_values) %>%
+      pull()
+
+    x <- x %>%
+      dplyr::mutate(
+        range_error = if_else(
+          is.na(.data$value), as.integer(NA),
+          if_else(.data$value %in% possible_values, 0L, 105L))) %>%
+      dplyr::select(.data$internal_id, .data$range_error)
+
+    flags_applied <- TRUE
+
+  } else {
+
+    # We need to check a few special cases here
+
+    if (code_name == "NIHR_HIC_ICU_0076") {
+      # NIHR_HIC_ICU_0076 - Post code
+      # This evaluates for full post code only
+
+      x <- x %>%
+        dplyr::mutate(
+          range_error = if_else(is.na(.data$value), as.integer(NA),
+                                if_else(validate_post_code(.data$value), 0L, 109L))) %>%
+        dplyr::select(.data$internal_id, .data$range_error)
+
+      flags_applied <- TRUE
+
+    }
+
+    if (code_name == "NIHR_HIC_ICU_0073") {
+      # NIHR_HIC_ICU_0073 - NHS Number
+
+      x <- x %>%
+        dplyr::mutate(
+          range_error = if_else(is.na(.data$value), as.integer(NA),
+                                if_else(validate_nhs(.data$value), 0L, 109L))) %>%
+        dplyr::select(.data$internal_id, .data$range_error)
+
+      flags_applied <- TRUE
+
+    }
+
+    if (code_name %in% c("NIHR_HIC_ICU_0399", "NIHR_HIC_ICU_0088", "NIHR_HIC_ICU_0912")) {
+      # NIHR_HIC_ICU_0399 - Primary Admission Reason
+      # NIHR_HIC_ICU_0088 - Secondary Admission Reason
+      # NIHR_HIC_ICU_0912 - Ultimate Primary
+      # This doesn't handle partial codes yet
+
+      x <- x %>%
+        dplyr::mutate(
+          range_error = ifelse(is.na(.data$value), as.integer(NA),
+                               if_else(validate_icnarc(.data$value), 0L, 109L))) %>%
+        dplyr::select(.data$internal_id, .data$range_error)
+
+      flags_applied <- TRUE
+
+    }
+
+    # Others not yet covered
+    # NIHR_HIC_ICU_0074 - Other Conditions in PMHx
+
+  }
+
+  if (!flags_applied) {
+
+    x <- x %>%
+      dplyr::mutate(
+        range_error = as.integer(NA)) %>%
+      dplyr::select(.data$internal_id, .data$range_error)
+
+  }
 
   class(x) <- append(class(x), "string_1d", after = 0)
 
@@ -272,8 +351,8 @@ flag_range.date_1d <- function(x = NULL) {
   # These are very primitive checks for date
   x %<>%
     dplyr::mutate(
-      range_error = ifelse(.data$value > Sys.Date(), 1L,
-                    ifelse(.data$value < lubridate::dmy("01/01/1900"), -1L, 0))) %>%
+      range_error = ifelse(.data$value > Sys.Date(), 104L,
+                    ifelse(.data$value < lubridate::dmy("01/01/1900"), 103L, 0))) %>%
     dplyr::select(.data$internal_id, .data$range_error)
 
   class(x) <- append(class(x), "date_1d", after = 0)
@@ -290,10 +369,10 @@ flag_range.datetime_1d <- function(x = NULL) {
   # These are very primitive checks for datetime
   x %<>%
     dplyr::mutate(
-      range_error = ifelse(.data$value > Sys.time(), 1L,
+      range_error = ifelse(.data$value > Sys.time(), 104L,
                     ifelse(.data$value < lubridate::dmy_hms(
                       "01/01/1900 00:00:00"),
-                    -1L, 0))) %>%
+                  103L, 0))) %>%
     dplyr::select(.data$internal_id, .data$range_error)
 
   class(x) <- append(class(x), "datetime_1d", after = 0)
@@ -358,12 +437,9 @@ flag_bounds_2d <- function(x = NULL, los_table = NULL) {
     left_join(los_table %>%
                 select(-.data$site), by = "episode_id") %>%
     mutate(out_of_bounds = ifelse(
-        difftime(.data$datetime, .data$epi_start_dttm, units = "days") < -2, -1L,
-      ifelse(
-        difftime(.data$datetime, .data$epi_end_dttm, units = "days") > 2, 1L,
-      ifelse(
-        is.na(.data$epi_start_dttm) | is.na(.data$epi_end_dttm), NA, 0L)))
-    ) %>%
+      .data$validity != 0, as.integer(NA),
+      if_else(difftime(.data$datetime, .data$epi_start_dttm, units = "days") < -2, 101L,
+      if_else(difftime(.data$datetime, .data$epi_end_dttm, units = "days") > 2, 102L, as.integer(NA))))) %>%
     select(.data$internal_id, .data$out_of_bounds)
 
   return(x)
@@ -447,7 +523,7 @@ flag_duplicate_2d <- function(x = NULL) {
     select(.data$internal_id, .data$duplicate) %>%
     right_join(x, by = "internal_id") %>%
     mutate_at(.vars = vars(.data$duplicate),
-              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+              .funs = funs(ifelse(is.na(.), 106L, .))) %>%
     select(.data$internal_id, .data$duplicate)
 
   return(x)
@@ -503,7 +579,7 @@ flag_duplicate_1d <- function(x = NULL) {
     select(.data$internal_id, .data$duplicate) %>%
     right_join(x, by = "internal_id") %>%
     mutate_at(.vars = vars(.data$duplicate),
-              .funs = funs(ifelse(is.na(.), 1L, .))) %>%
+              .funs = funs(ifelse(is.na(.), 106L, .))) %>%
     select(.data$internal_id, .data$duplicate)
 
   return(x)
@@ -633,9 +709,9 @@ flag_periodicity_generic <- function(x, los_table = NULL) {
   x %<>%
 
     # filter out values that cannot be taken into consideration for this calculation
-    dplyr::filter(.data$out_of_bounds == 0,
-                  .data$range_error == 0,
-                  .data$duplicate == 0) %>%
+    dplyr::filter(.data$out_of_bounds == 0L,
+                  .data$range_error == 0L,
+                  .data$duplicate == 0L) %>%
 
     # only need 1 value of interest to track periodicity (we'll choose datetime)
     dplyr::select(.data$episode_id, .data$datetime) %>%
@@ -646,7 +722,7 @@ flag_periodicity_generic <- function(x, los_table = NULL) {
     dplyr::left_join(los_table %>%
 
                        # only checking validated episodes
-                       dplyr::filter(.data$validity == 0) %>%
+                       dplyr::filter(.data$validity == 0L) %>%
                        dplyr::select(.data$episode_id, .data$los),
                      by = "episode_id") %>%
 

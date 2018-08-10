@@ -13,5 +13,6 @@ plot_hic(x, path_name = NULL, all_sites.col)
 A tibble 1 row per event
 }
 \description{
-Plots NHIC events in a predetermined way and output to the plot folder specified
+Plots NHIC events in a predetermined way and output to the plot folder
+specified
 }

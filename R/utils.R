@@ -1,118 +1,164 @@
-#' Establishes a connection to the postgres database
+#' Establishes a connection to the database
 #'
-#' @param host host of the database: typically localhose
-#' @param username
-#' @param password
-#' @param database
+#' @param host db host: typically "localhost"
+#' @param username db username
+#' @param password db password
+#' @param database target db
+#' @param system choice of either "postgres" or "sqlite" depending upon your backend
+#' @param file filename as character vector if using an sqlite db
 #'
-#' @return
+#' @return a database object connection
 #' @export
 #'
 #' @examples
-connect <- function(host = 'localhost', username = 'ucasper', password = "superdb", database = 'cchic') {
+#' # connect to postgres with default settings
+#' ctn <- connect()
+#' # connect to sqlite
+#' ctn <- connect(system = "sqlite", file = "path/to/file.sqlite3")
+connect <- function(host = 'localhost',
+                    username = 'ucasper',
+                    password = "superdb",
+                    database = 'cchic',
+                    system = "postgres",
+                    file = NULL) {
 
-  DBI::dbConnect(RPostgres::Postgres(),
-                 host=host,
-                 port=5432,
-                 user=username,
-                 password=password,
-                 dbname=database)
+  if (system == "postgres") {
+
+    connection <- DBI::dbConnect(RPostgres::Postgres(),
+                   host=host,
+                   port=5432,
+                   user=username,
+                   password=password,
+                   dbname=database)
+
+  }
+
+  if (system == "sqlite") {
+
+    connection <- DBI::dbConnect(RSQLite::SQLite(), file)
+
+  }
+
+  return(connection)
 
 }
 
 
-#' Prepares workspace by retrieving all the POSTgres tables without collection
+#' Retrieves db tables
 #'
 #' These tables come as a list and must be unlisted or accessed directly
 #'
-#' @param connection a formal PostgreSQL connection
+#' @param connection an sql connection
 #'
-#' @return
+#' @importFrom dplyr db_list_tables
+#' @import dbplyr
+#'
+#' @return a list containing pointers to tables within the sql connection
 #' @export
 #'
 #' @examples
-retrieve <- function(connection) {
+#' retrieve_tables(ctn)
+retrieve_tables <- function(connection) {
 
   if(missing(connection)) {
     stop("a connection must be provided")
   }
 
   all_tables <- dplyr::db_list_tables(connection)
-
   tbl_list <- list()
 
-  for (i in 1:length(all_tables)) {
-
-    tbl_list[[i]] <- dplyr::tbl(connection, all_tables[i])
-
+  for (i in seq_along(all_tables)) {
+    tbl_list[[all_tables[i]]] <- dplyr::tbl(connection, all_tables[i])
   }
 
-  names(tbl_list) <- all_tables
-
   return(tbl_list)
-
-  #for (i in 1:length(all_tables)) assign(all_tables[i], table_list[[i]])
 
 }
 
 
 #' Make reference Table
 #'
-#' makes the reference table used as the basis for many local (non-database) functions
-#' This is to facilitate grouping by site, as this is not present in the
-#' episode table
+#' Makes the reference table used my many functions in this package.
+#' This is part of the basic setup.
 #'
-#'
-#' @param episodes collected episode table
-#' @param provenance collected provenance table
+#' @param connection a database connection
 #'
 #' @return a tibble with episode level data with site
 #' @export
 #'
 #' @examples
-#' make_reference(episodes, provenance)
-make_reference <- function(episodes, provenance) {
+#' make_reference(ctn)
+make_reference <- function(connection) {
 
-  left_join(episodes, provenance, by = c("provenance" = "file_id")) %>%
-  select(episode_id, nhs_number, start_date, site)
+    episodes <- dplyr::tbl(connection, "episodes")
+    provenance <- dplyr::tbl(connection, "provenance")
 
+    reference <- left_join(episodes, provenance, by = c("provenance" = "file_id")) %>%
+      select(episode_id, nhs_number, start_date, site)
+
+    # Accounts for lack of datetime type in SQLite
+    if (attributes(attributes(connection)$class)$package == "RSQLite") {
+      reference <- reference %>%
+        mutate(start_date = datetime(start_date, 'unixepoch')) %>%
+        collect() %>%
+        mutate(start_date = lubridate::ymd_hms(start_date))
+
+      return(reference)
+
+    } else {
+
+      reference <- collect(reference)
+      return(reference)
+
+    }
 }
 
 
-
+#' Make core table
+#'
 #' Produces the core table structure necessary for the data quality report
 #'
-#' @param events events table
-#' @param episodes episodes table
-#' @param provenance provenance table
+#' @param connection a database connection
 #'
-#' @return
+#' @return a tibble with all hic events
 #' @export
 #'
 #' @examples
-make_core <- function(events, episodes, provenance) {
+#' make_core(ctn)
+make_core <- function(connection) {
+
+  events <- dplyr::tbl(connection, "events")
+  episodes <- dplyr::tbl(connection, "episodes")
+  provenance <- dplyr::tbl(connection, "provenance")
 
   core <- episodes %>%
-  left_join(provenance, by = c("provenance" = "file_id")) %>%
-  inner_join(events, by = "episode_id")
+    left_join(provenance, by = c("provenance" = "file_id")) %>%
+    inner_join(events, by = "episode_id")
+
+  # if (attributes(attributes(connection)$class)$package == "RSQLite") {
+  #
+  #   core <- core %>%
+  #     mutate(start_date = datetime(start_date, 'unixepoch'),
+  #            date_created = datetime(date_created, 'unixepoch'),
+  #            datetime = datetime(datetime, 'unixepoch')
+  #            #date = datetime(date, 'unixepoch')
+  #            )
+  #
+  # }
 
   return(core)
 
 }
 
 
-#' make_key <- function(events, episodes, provenance) {
-#'
-#'   key <- episodes %>%
-#'   left_join(provenance, by = c("provenance" = "file_id")) %>%
-#'   inner_join(events, by = "episode_id") %>%
-#'   select(episode_id, provenance) %>%
-#'   collect() %>%
-#'   distinct()
-#'
-#'   return(key)
-#'
-#' }
+parse_sqlite_datetime <- function(object) {
+
+  if (attributes(class(object$src$con))$package == "RSQLite") {
+
+
+  }
+
+}
 
 
 # admission_dttm <- function(core_table = NULL) {

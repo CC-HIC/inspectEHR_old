@@ -1,7 +1,7 @@
 Package: inspectEHR
 Type: Package
 Title: Data Quality Reporting and Validation for CC-HIC
-Version: 0.2.5
+Version: 0.3.1
 Author: Edward Palmer
 Maintainer: Edward Palmer <edward.palmer@ucl.ac.uk>
 Description: This package helps to produce data quality reports for CC-HIC.
@@ -22,7 +22,11 @@ Imports:
     dbplyr,
     magrittr,
     broom,
-    tibble
+    tibble,
+    rlang,
+    scales,
+    stringr,
+    xml2
 RoxygenNote: 6.0.1
 Suggests:
     knitr,

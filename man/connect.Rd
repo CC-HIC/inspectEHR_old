@@ -2,16 +2,33 @@
 % Please edit documentation in R/utils.R
 \name{connect}
 \alias{connect}
-\title{Establishes a connection to the postgres database}
+\title{Establishes a connection to the database}
 \usage{
 connect(host = "localhost", username = "ucasper", password = "superdb",
-  database = "cchic")
+  database = "cchic", system = "postgres", file = NULL)
 }
 \arguments{
-\item{host}{host of the database: typically localhose}
+\item{host}{db host: typically "localhost"}
 
-\item{database}{}
+\item{username}{db username}
+
+\item{password}{db password}
+
+\item{database}{target db}
+
+\item{system}{choice of either "postgres" or "sqlite" depending upon your backend}
+
+\item{file}{filename as character vector if using an sqlite db}
+}
+\value{
+a database object connection
 }
 \description{
-Establishes a connection to the postgres database
+Establishes a connection to the database
+}
+\examples{
+# connect to postgres with default settings
+ctn <- connect()
+# connect to sqlite
+ctn <- connect(system = "sqlite", file = "path/to/file.sqlite3")
 }

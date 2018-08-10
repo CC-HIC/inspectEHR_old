@@ -5,19 +5,29 @@
 \title{Make HIC Report Data}
 \usage{
 make_report(database = "lenient_dev", username = "edward",
-  password = "superdb", path_name = NULL, useDeath = TRUE)
+  password = "superdb", host = "localhost", system = "postgres",
+  file = NULL, path_name = NULL, spell_boundary_mins = 60)
 }
 \arguments{
-\item{path_name}{}
+\item{database}{}
+
+\item{spell_boundary_mins}{the time gap you are willing to allow for the
+definition of spells}
 }
 \description{
-This is the main function for processing data from CC-HIC. It wraps all alther functions to evaluate
-the whole database in one sweep.
+This is the main function for processing data from CC-HIC. It wraps all
+other functions to evaluate the whole database in one sweep.
+This can take some time!
 }
 \details{
-When running this function, path_name should be made availible with the following folders:
+Specify the output folder in "path_name" when running this function,
+path_name should be made availible with the following folders:
 plots
 working_data
 
-report.rmd can be run after this function has successfully completed to produce a full report for CC-HIC
+report.rmd can be run after this function has successfully completed to
+produce a full report for CC-HIC
+
+When calculating spells. This will automatiically check against your
+contraint +/- 60 mins so you can see how sensitive your calcuation is.
 }

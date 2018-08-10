@@ -2,17 +2,19 @@
 % Please edit documentation in R/utils.R
 \name{make_core}
 \alias{make_core}
-\title{Produces the core table structure necessary for the data quality report}
+\title{Make core table}
 \usage{
-make_core(events, episodes, provenance)
+make_core(connection)
 }
 \arguments{
-\item{events}{events table}
-
-\item{episodes}{episodes table}
-
-\item{provenance}{provenance table}
+\item{connection}{a database connection}
+}
+\value{
+a tibble with all hic events
 }
 \description{
 Produces the core table structure necessary for the data quality report
+}
+\examples{
+make_core(ctn)
 }

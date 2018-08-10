@@ -7,7 +7,15 @@
 extract_1d(core_table = NULL, input = NULL, data_location = NULL)
 }
 \arguments{
-\item{data_location}{the column name that stores the primary data for this variable}
+\item{core_table}{the core table from make_core}
+
+\item{input}{the HIC code for the variable of interest}
+
+\item{data_location}{the column name that stores the primary data for this
+variable}
+}
+\value{
+a tibble with HIC data for a specified variable
 }
 \description{
 This function extracts the correct column from the CC-HIC database

@@ -4,17 +4,17 @@
 \alias{plot_heatcal}
 \title{Plot Calendar Heatmap}
 \usage{
-plot_heatcal(episodes = NULL, provenance = NULL, site = NULL,
-  filename = NULL)
+plot_heatcal(reference_table = NULL, site = NULL, filename = NULL,
+  start_date = "2014-01-01", end_date = "2018-01-01")
 }
 \arguments{
-\item{episodes}{collected episodes table}
-
-\item{provenance}{collected provenance table}
-
 \item{site}{character string of hospital site to plot}
 
 \item{filename}{optional string to save output. must include extension}
+
+\item{episodes}{collected episodes table}
+
+\item{provenance}{collected provenance table}
 }
 \value{
 a plot with admission details in heatmap form
