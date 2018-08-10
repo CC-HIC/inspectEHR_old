@@ -7,41 +7,75 @@
 #'
 #' @return A tibble of 1d data
 #' @examples
-#' extract_demographics(metadata, events, cast_style = "wide")
-#' extract_demographics(metadata, events, cast_style = "tall")
-extract_demographics <- function(metadata = NULL, events = NULL, cast_style = "tall") {
-
-  stopifnot(!is.null(metadata) & !is.null(events))
-
-  data_columns <- metadata %>%
-    dplyr::select(-code_name, -long_name, -primary_column) %>%
-    colnames
+#' extract_demographics(tbls[["variables"]], tbls[["events"]])
+extract_demographics <- function(metadata = NULL, events = NULL) {
 
   demographics <- metadata %>%
+    collect() %>%
     dplyr::mutate(nas = metadata %>%
-             dplyr::select(data_columns) %>%
-             tibble::as.tibble() %>%
-             apply(1, function(x) sum(!is.na(x)))) %>%
+                    dplyr::select(-code_name, -long_name, -primary_column) %>%
+                    collect() %>%
+                    tibble::as.tibble() %>%
+                    apply(1, function(x) sum(!is.na(x)))) %>%
     dplyr::filter(nas == 1) %>%
-    dplyr::select(code_name)
+    dplyr::select(code_name, primary_column)
 
-  demographics <- dplyr::inner_join(events, demographics, by = "code_name")
+  code_names <- demographics$code_name
 
-  if (cast_style == "tall") {
+  tb_base <- events %>%
+    select(episode_id, code_name, integer, string, real, date, time, datetime) %>%
+    filter(code_name %in% code_names) %>%
+    collect()
 
-    return(demographics)
+  tb_1_strings <- tb_base %>%
+    select(code_name, string, episode_id) %>%
+    inner_join(demographics %>%
+                 filter(primary_column == "string"), by = "code_name") %>%
+    select(-primary_column) %>%
+    spread(key = code_name, value = string)
 
-  }
+  tb_1_ints <- tb_base %>%
+    select(code_name, integer, episode_id) %>%
+    inner_join(demographics %>%
+                 filter(primary_column == "integer"), by = "code_name") %>%
+    select(-primary_column) %>%
+    spread(key = code_name, value = integer)
 
-  if (cast_style == "wide") {
+  tb_1_real <- tb_base %>%
+    select(code_name, real, episode_id) %>%
+    inner_join(demographics %>%
+                 filter(primary_column == "real"), by = "code_name") %>%
+    select(-primary_column) %>%
+    spread(key = code_name, value = real)
 
-    wide_demographics <- demographics %>%
-      spread(key = code_name,
-             value = value)
+  tb_1_dates <- tb_base %>%
+    select(code_name, date, episode_id) %>%
+    inner_join(demographics %>%
+                 filter(primary_column == "date"), by = "code_name") %>%
+    select(-primary_column) %>%
+    spread(key = code_name, value = date)
 
-    return(wide_demographics)
+  tb_1_time <- tb_base %>%
+    select(code_name, time, episode_id) %>%
+    inner_join(demographics %>%
+                 filter(primary_column == "time"), by = "code_name") %>%
+    select(-primary_column) %>%
+    spread(key = code_name, value = time)
 
-  }
+  tb_1_datetime <- tb_base %>%
+    select(code_name, datetime, episode_id) %>%
+    inner_join(demographics %>%
+                 filter(primary_column == "datetime"), by = "code_name") %>%
+    select(-primary_column) %>%
+    spread(key = code_name, value = datetime)
 
+  db_1 <- tb_1_strings %>%
+    full_join(tb_1_ints, by = "episode_id") %>%
+    full_join(tb_1_real, by = "episode_id") %>%
+    full_join(tb_1_dates, by = "episode_id") %>%
+    full_join(tb_1_datetime, by = "episode_id") %>%
+    full_join(tb_1_time, by = "episode_id")
+
+  return(db_1)
 
 }
