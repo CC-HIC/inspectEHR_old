@@ -20,7 +20,11 @@ validate_nhs <- function(nhs_numbers = NULL) {
 
   for (entry in seq_along(nhs)) {
 
-    if (nchar(nhs[entry]) != 10) {
+    if (is.na(nhs[entry])) {
+
+      response[entry] <- as.logical(NA)
+
+    } else if (nchar(nhs[entry]) != 10) {
 
       response[entry] <- FALSE
 
