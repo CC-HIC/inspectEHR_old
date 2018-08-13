@@ -14,7 +14,10 @@
 #' \dontrun{
 #' extract_timevarying(tbls[["events"]], tbls[["variables"]] %>% collect)
 #' extract_timevarying(tbls[["events"]] %>%
-#' filter(code_name == "NIHR_HIC_ICU_0108"), tbls[["variables"]] %>% collect) # returns just heart rates
+#'   filter(code_name %in% c("NIHR_HIC_ICU_0108", "NIHR_HIC_ICU_0411")),
+#'   tbls[["variables"]] %>% collect)
+#'   # returns just heart rates
+#'   # you MUST include 0411 here as the start datetime is a mandatory field
 #'
 #' }
 #'
@@ -50,8 +53,6 @@ process_all <- function(epi_id, events, metadata) {
   pt <- events %>%
     filter(episode_id == epi_id)
 
-  print(epi_id)
-
   start_time <- pt %>%
     filter(code_name == "NIHR_HIC_ICU_0411") %>%
     mutate(datetime = as.POSIXct(datetime, origin = "1970-01-01 00:00:00")) %>%
@@ -83,8 +84,8 @@ process_episode <- function(df, var_name, metadata, start_time) {
 
   tb_a <- df %>%
     mutate(datetime = as.POSIXct(datetime, origin = "1970-01-01 00:00:00")) %>%
-    mutate(diff_time = difftime(datetime, start_time, units = "hours"),
-           r_diff_time = as.integer(round(diff_time))) %>%
+    mutate(diff_time = difftime(datetime, start_time, units = "hours")) %>%
+    mutate(r_diff_time = as.integer(round(diff_time))) %>%
     distinct(r_diff_time, .keep_all = TRUE) %>%
     select(-row.names, -episode_id, -datetime, -code_name, -diff_time) %>%
     rename(!! var_name := prim_col) %>%
@@ -121,16 +122,17 @@ find_2d <- function(metadata) {
 }
 
 
-find_2d_meta <- function(metadata, code_name) {
+find_2d_meta <- function(metadata, c_name) {
 
-  prim_col <- metadata %>%
-    filter(code_name == code_name) %>%
+  select_row <- metadata %>%
+    filter(code_name == c_name)
+
+  prim_col <- select_row %>%
     select(primary_column) %>%
     pull()
 
-  metadata %>%
-    filter(code_name == code_name) %>%
-    select(-code_name, -long_name, -primary_column, -!! prim_col) %>%
+  select_row %>%
+    select(-code_name, -long_name, -primary_column, -datetime, -!! prim_col) %>%
     select_if(.predicate = not_na) %>%
     names()
 
