@@ -4,7 +4,7 @@
 \alias{extract_demographics}
 \title{Extract 1d data from CC-HIC}
 \usage{
-extract_demographics(metadata = NULL, events = NULL, cast_style = "tall")
+extract_demographics(metadata = NULL, events = NULL)
 }
 \arguments{
 \item{metadata}{a database metadata table}
@@ -18,6 +18,5 @@ A tibble of 1d data
 Extract 1d data from CC-HIC
 }
 \examples{
-extract_demographics(metadata, events, cast_style = "wide")
-extract_demographics(metadata, events, cast_style = "tall")
+extract_demographics(tbls[["variables"]], tbls[["events"]])
 }

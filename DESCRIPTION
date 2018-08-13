@@ -21,17 +21,18 @@ Imports:
     lubridate,
     dbplyr,
     magrittr,
-    broom,
     tibble,
     rlang,
     scales,
     stringr,
-    xml2
+    purrr
 RoxygenNote: 6.0.1
 Suggests:
     knitr,
     rmarkdown,
-    testthat
+    testthat,
+    broom,
+    xml2
 VignetteBuilder: knitr
 URL: https://github.com/CC-HIC/inspectEHR
 BugReports: https://github.com/CC-HIC/inspectEHR

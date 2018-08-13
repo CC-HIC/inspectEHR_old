@@ -161,6 +161,20 @@ parse_sqlite_datetime <- function(object) {
 }
 
 
+find_max_time <- function(events, time_col) {
+
+  quo_timecol <- enquo(time_col)
+
+  max_time <- events %>%
+    group_by(episode_id) %>%
+    summarise(maxtime = max(!! quo_timecol, na.rm = TRUE)) %>%
+    collect() %>%
+    mutate(maxtime = as.POSIXct(maxtime, origin = "1970-01-01 00:00:00"))
+
+  return(max_time)
+
+}
+
 # admission_dttm <- function(core_table = NULL) {
 #
 #   if (is.null(core_table)) stop("You must include the tables")
