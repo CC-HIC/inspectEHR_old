@@ -39,7 +39,8 @@ make_report <- function(database = "lenient_dev",
                         system = "postgres",
                         file = NULL,
                        path_name = NULL,
-                spell_boundary_mins = 60) {
+                spell_boundary_mins = 60,
+                do.plots = TRUE) {
 
   # Folder set up ====
   if (str_sub(path_name, -1) != "/") {
@@ -303,22 +304,20 @@ make_report <- function(database = "lenient_dev",
       flag_all(episode_length)
 
     # Plotting
-    plot_hic(x = temp_df, path_name = path_name, all_sites.col = all_sites.col)
-
-    print(paste0("finished plotting: ", hic_codes[i]))
+    if (do.plots) {
+      plot_hic(x = temp_df, path_name = path_name, all_sites.col = all_sites.col)
+      print(paste0("finished plotting: ", hic_codes[i]))
+    }
 
     #Saving errors outside the main list
     try(hic_event_summary[[hic_codes[i]]] <- summary_main(temp_df, reference))
 
-    # try(hic_event_validation[[hic_codes[i]]] <- validate_event(
-    # validated_episodes, temp_df))
+    try(hic_event_validation[[hic_codes[i]]] <- validate_event(
+      validated_episodes, temp_df))
 
     print(paste0("finished validating: ", hic_codes[i]))
 
     rm(temp_df)
-
-    print(paste0("totally finished: ", hic_codes[i]))
-
     setTxtProgressBar(pb, i)
 
   }
@@ -327,12 +326,12 @@ make_report <- function(database = "lenient_dev",
 
   print("Finished Event Level Evaluation")
 
-  # save(hic_event_summary,
-  #      file = paste0(path_name,
-  #                    "working_data/hic_event_summary.RData"))
-  # save(hic_event_validation,
-  #      file = paste0(path_name,
-  #                    "working_data/hic_event_validation.RData"))
+  save(hic_event_summary,
+       file = paste0(path_name,
+                     "working_data/hic_event_summary.RData"))
+  save(hic_event_validation,
+       file = paste0(path_name,
+                     "working_data/hic_event_validation.RData"))
 
   # close the connection
 

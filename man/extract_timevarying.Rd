@@ -15,13 +15,33 @@ extract_timevarying(events, metadata, chunk_size = 5000)
 sparse tibble with hourly cadance as rows, and unique hic events as columns
 }
 \description{
-Reshapes timevarying events into hourly cadance table
+This is the workhorse function that transcribes 2d data from the DB
+to a dense table with 1 column per variable (and metadata if relevent)
+and 1 row per hour per patient.
+}
+\details{
+Choose what variables you want to pull out wisely. Whilst this is actually
+pretty quick considering what it needs to do, it can take a long time, especially
+if you do this on the whole database. Typically, for 1 variable that is very
+well decribed within HIC (i.e. hear rate), this could take around 20 mins.
+The whole database might take upward of 6 hours to complete.
+
+It is perfectly possible for this table to produce negative hours. If, for example
+a patient had a measure taken in the hours before they were admitted, then this would
+be added to the table with a negative time value. As a concrete example,
+if a patient had a sodium measured at 08:00, and they were admitted to the
+ICU at 20:00 the same day, then the sodium would present on the output table
+at time = -12. This is normal behaviour it is left to the end user to
+descibe how best they wish to account for this.
 }
 \examples{
 \dontrun{
 extract_timevarying(tbls[["events"]], tbls[["variables"]] \%>\% collect)
 extract_timevarying(tbls[["events"]] \%>\%
-filter(code_name == "NIHR_HIC_ICU_0108"), tbls[["variables"]] \%>\% collect) # returns just heart rates
+  filter(code_name \%in\% c("NIHR_HIC_ICU_0108", "NIHR_HIC_ICU_0411")),
+  tbls[["variables"]] \%>\% collect)
+  # returns just heart rates
+  # you MUST include 0411 here as the start datetime is a mandatory field
 
 }
 

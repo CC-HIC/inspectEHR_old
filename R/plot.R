@@ -26,7 +26,7 @@ plot_hic <- function(x, path_name = NULL, all_sites.col) {
 
     if (!(code_name %in% paste0(
       "NIHR_HIC_ICU_0", c(
-        "001", "002", "003", "004", "005", "073", "399", "088", "912")))) {
+        "001", "002", "003", "004", "005", "073", "076", "399", "088", "912")))) {
 
       primary_plot <- plot_default(
         x,

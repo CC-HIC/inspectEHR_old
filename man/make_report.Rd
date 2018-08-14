@@ -6,7 +6,8 @@
 \usage{
 make_report(database = "lenient_dev", username = "edward",
   password = "superdb", host = "localhost", system = "postgres",
-  file = NULL, path_name = NULL, spell_boundary_mins = 60)
+  file = NULL, path_name = NULL, spell_boundary_mins = 60,
+  do.plots = TRUE)
 }
 \arguments{
 \item{database}{}
