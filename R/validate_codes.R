@@ -24,7 +24,7 @@ validate_nhs <- function(nhs_numbers = NULL) {
 
       response[entry] <- as.logical(NA)
 
-    } else if (nchar(nhs[entry]) != 10) {
+    } else if (nchar(nhs[entry]) != 10 | !(grepl("^[0-9]+$", nhs[entry]))) {
 
       response[entry] <- FALSE
 
