@@ -286,8 +286,7 @@ flag_range.string_1d <- function(x = NULL) {
 
       x <- x %>%
         dplyr::mutate(
-          range_error = if_else(is.na(.data$value), as.integer(NA),
-                                if_else(validate_post_code(.data$value), 0L, 109L))) %>%
+          range_error = if_else(validate_post_code(.data$value), 0L, 109L)) %>%
         dplyr::select(.data$internal_id, .data$range_error)
 
       flags_applied <- TRUE
