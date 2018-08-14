@@ -264,14 +264,14 @@ make_report <- function(database = "lenient_dev",
   # typical_admissions gives me the mean and sd for the long running admissions
   # by wday
 
-  de_validated <- devalidate_episodes(episode_length_table = episode_length,
+  validated_episodes <- validate_episodes(episode_length_table = episode_length,
                                           reference_table = reference,
                                           all_sites = all_sites,
                                           threshold = 10)
 
   #save(validated_episodes, file = paste0(path_name,
   # "validation_data/validated_episodes.RData"))
-  DBI::dbWriteTable(ctn, "episode_validation", de_validated, append = TRUE,
+  DBI::dbWriteTable(ctn, "episode_validation", validated_episodes, append = TRUE,
                     overwrite = FALSE)
 
   setTxtProgressBar(pb, 10)

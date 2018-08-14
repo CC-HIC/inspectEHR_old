@@ -1,4 +1,4 @@
-#' Devalidate Episodes Based Upon Patchy Data
+#' Validate Episodes Based Upon Patchy Data
 #'
 #' Determines which months are invalid based on a low contribution of data
 #' This is based upon the long term daily average for admissions. Days that
@@ -24,7 +24,7 @@
 #' @examples
 #' invalid_months(episodes, provenance)
 #' invalid_months(episodes, provenance, theshold = 15)
-devalidate_episodes <- function(episode_length_table,
+validate_episodes <- function(episode_length_table,
                            reference_table, all_sites, threshold = 10) {
 
   # The typical admissions for a given day of the week within a year window
