@@ -140,9 +140,26 @@ find_2d_meta <- function(metadata, c_name) {
 
 
 
-expand_missing <- function(x) {
+#' Fill in 2d Table to make a Sparse Table
+#'
+#' The extract_timevarying returns a non-sparse table (i.e. rows/hours with
+#' no recorded information for a patient are not presented in the table)
+#' This function serves to expand the table and fill missing rows with NAs.
+#' This is useful when working with most time-series aware stats packages
+#' that expect a regular cadance to the table.
+#'
+#' @param df a dense time series table produced from extract_timevarying
+#'
+#' @return a sparse time series table
+#' @export
+#'
+#' @examples
+#' \{dontrun
+#' expand_missing(tb_1)
+#' }
+expand_missing <- function(df) {
 
-  x %>%
+  df %>%
     select(episode_id, time) %>%
     split(., .$episode_id) %>%
     imap(function(df, epi_id) tibble(episode_id = epi_id,
