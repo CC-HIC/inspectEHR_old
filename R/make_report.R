@@ -59,11 +59,7 @@ make_report <- function(database = "lenient_dev",
   if(!dir.exists(paste0(path_name, "validation_data"))) {
     dir.create(paste0(path_name, "validation_data"))}
 
-  cat("Starting Set-Up")
-
-  pb <- txtProgressBar(min = 0, max = 10, style = 3)
-
-  setTxtProgressBar(pb, 1)
+  Print("Starting Episode Evaluation")
 
   hic_codes <- qref %>%
     dplyr::select(code_name) %>%
@@ -77,9 +73,6 @@ make_report <- function(database = "lenient_dev",
                  system = system,
                  host = host, file = file)
   tbls <- retrieve_tables(ctn)
-  #tbl_list <- dplyr::db_list_tables(ctn)
-
-  setTxtProgressBar(pb, 2)
 
   # Collect small tables
   episodes <- collect(tbls[["episodes"]])
@@ -92,8 +85,6 @@ make_report <- function(database = "lenient_dev",
   # empty_files <- empty_files(episodes, provenance)
   # non_parsed <- non_parsed_files(provenance)
   # error_summary <- error_summary(errors, provenance)
-
-  setTxtProgressBar(pb, 3)
 
   # error_grid <- error_summary %>%
   #   ggplot(aes(x = site, y = message_type, fill = count)) +
@@ -113,8 +104,6 @@ make_report <- function(database = "lenient_dev",
     dplyr::select(site, code_name) %>%
     dplyr::distinct() %>%
     dplyr::collect()
-
-  setTxtProgressBar(pb, 4)
 
   # Capture all the sites currently contributing to the project
   all_sites <- provenance %>%
@@ -161,7 +150,6 @@ make_report <- function(database = "lenient_dev",
   #                                   pull() %>%
   #                                   unique())
 
-  setTxtProgressBar(pb, 5)
 
   # Reference Table
   # Left join is used here because we don't want to drag around NAs from empty
@@ -178,14 +166,10 @@ make_report <- function(database = "lenient_dev",
     dplyr::distinct() %>%
     weekly_admissions()
 
-  setTxtProgressBar(pb, 6)
-
   # Gives overall admission numbers (totals) for patients/episodes
   admissions_by_unit <-
     unit_admissions(events_table = tbls[["events"]],
                     reference_table = reference)
-
-  setTxtProgressBar(pb, 7)
 
   for (i in seq_along(all_sites)) {
     plot_heatcal(reference_table = reference, site = all_sites[i])
@@ -196,8 +180,6 @@ make_report <- function(database = "lenient_dev",
       "_admissions.png"),
       dpi = 300, width = 10, height = 7, units = "in")
   }
-
-  setTxtProgressBar(pb, 8)
 
   # Length of Stay "Episode Length" ----
 
@@ -258,8 +240,6 @@ make_report <- function(database = "lenient_dev",
     left_join(spells_50_over, by = "site") %>%
     left_join(spells_50_under, by = "site")
 
-  setTxtProgressBar(pb, 9)
-
   # Episode validity long term average
   # typical_admissions gives me the mean and sd for the long running admissions
   # by wday
@@ -274,27 +254,21 @@ make_report <- function(database = "lenient_dev",
   DBI::dbWriteTable(ctn, "episode_validation", validated_episodes, append = TRUE,
                     overwrite = FALSE)
 
-  setTxtProgressBar(pb, 10)
-
-  close(pb)
-
-  cat("Finished Set-Up")
+  print("Finished Episode Evaluation")
 
   ###############
   # Events =====
   ###############
 
+  print("Starting Event Level Evaluation")
+
   # Set up events
   hic_event_summary <- vector(mode = "list", length = length(hic_codes))
   names(hic_event_summary) <- hic_codes
 
-  hic_event_validation <- vector(mode = "list", length = length(hic_codes))
-  names(hic_event_validation) <- hic_codes
-
-  # create progress bar
-  cat("Starting Event Level Evaluation")
-
-  pb <- txtProgressBar(min = 0, max = length(hic_codes), style = 3)
+  if (DBI::dbExistsTable(ctn, "event_validation")) {
+    DBI::dbRemoveTable(ctn, "event_validation")
+  }
 
   for (i in seq_along(hic_codes)) {
 
@@ -306,37 +280,28 @@ make_report <- function(database = "lenient_dev",
     # Plotting
     if (do.plots) {
       plot_hic(x = temp_df, path_name = path_name, all_sites.col = all_sites.col)
-      print(paste0("finished plotting: ", hic_codes[i]))
     }
 
     #Saving errors outside the main list
     try(hic_event_summary[[hic_codes[i]]] <- summary_main(temp_df, reference))
 
-    try(hic_event_validation[[hic_codes[i]]] <- validate_event(
-      validated_episodes, temp_df))
+    hic_event_validation <- validate_event(validated_episodes, temp_df)
+
+    DBI::dbWriteTable(conn = ctn, name = "event_validation", value = hic_event_validation, append = TRUE)
 
     print(paste0("finished validating: ", hic_codes[i]))
 
-    rm(temp_df)
-    setTxtProgressBar(pb, i)
-
   }
-
-  close(pb)
 
   print("Finished Event Level Evaluation")
 
   save(hic_event_summary,
        file = paste0(path_name,
                      "working_data/hic_event_summary.RData"))
-  save(hic_event_validation,
-       file = paste0(path_name,
-                     "working_data/hic_event_validation.RData"))
 
   # close the connection
 
   DBI::dbDisconnect(ctn)
-
 
 }
 

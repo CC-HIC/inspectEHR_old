@@ -135,8 +135,7 @@ validate_event <- function(validated_episodes = NULL, flagged_events = NULL) {
     dplyr::select(.data$episode_id, .data$internal_id) %>%
     dplyr::inner_join(validated_episodes %>%
                         filter(.data$validity == 0), by = "episode_id") %>%
-    dplyr::select(.data$internal_id) %>%
-    dplyr::pull()
+    dplyr::select(.data$internal_id)
 
   return(x)
 
