@@ -432,13 +432,15 @@ flag_bounds.default <- function(...) {
 #' flag_bounds_2d(x, los_table)
 flag_bounds_2d <- function(x = NULL, los_table = NULL) {
 
-  x %<>%
+  x <- x %>%
     left_join(los_table %>%
                 select(-.data$site), by = "episode_id") %>%
-    mutate(out_of_bounds = ifelse(
-      .data$validity != 0, as.integer(NA),
-      if_else(difftime(.data$datetime, .data$epi_start_dttm, units = "days") < -2, 101L,
-      if_else(difftime(.data$datetime, .data$epi_end_dttm, units = "days") > 2, 102L, as.integer(NA))))) %>%
+    mutate(out_of_bounds = if_else(
+      (.data$validity != 0L), as.integer(NA),
+        if_else(
+      (as.integer(difftime(.data$datetime, .data$epi_start_dttm, units = "days")) < -2L), 101L,
+        if_else(
+      (as.integer(difftime(.data$datetime, .data$epi_end_dttm, units = "days")) > 2L), 102L, 0L)))) %>%
     select(.data$internal_id, .data$out_of_bounds)
 
   return(x)
