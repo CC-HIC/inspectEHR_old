@@ -59,7 +59,7 @@ make_report <- function(database = "lenient_dev",
   if(!dir.exists(paste0(path_name, "validation_data"))) {
     dir.create(paste0(path_name, "validation_data"))}
 
-  Print("Starting Episode Evaluation")
+  print("Starting Episode Evaluation")
 
   hic_codes <- qref %>%
     dplyr::select(code_name) %>%
@@ -78,22 +78,6 @@ make_report <- function(database = "lenient_dev",
   episodes <- collect(tbls[["episodes"]])
   provenance <- collect(tbls[["provenance"]])
   metadata <- collect(tbls[["variables"]])
-  # errors <- collect(tbls[["errors"]])
-
-  # XML level errors
-  # xml_stats <- xml_stats(importstats = tbls[["importstats"]])
-  # empty_files <- empty_files(episodes, provenance)
-  # non_parsed <- non_parsed_files(provenance)
-  # error_summary <- error_summary(errors, provenance)
-
-  # error_grid <- error_summary %>%
-  #   ggplot(aes(x = site, y = message_type, fill = count)) +
-  #   geom_tile() +
-  #   geom_text(aes(label = count), colour = "white") +
-  #   theme_minimal()
-  #
-  # ggsave(error_grid, filename = paste0(path_name, "plots/error_grid.png"))
-  # rm(error_grid)
 
   ## Missing fields
   # we want to identify fields that are not contributed by a site
@@ -145,11 +129,6 @@ make_report <- function(database = "lenient_dev",
     plot = missing_events_plot,
     height = 40)
 
-  # missing_events <- base::setdiff(hic_codes, unique_events %>%
-  #                                   select(code_name) %>%
-  #                                   pull() %>%
-  #                                   unique())
-
 
   # Reference Table
   # Left join is used here because we don't want to drag around NAs from empty
@@ -198,17 +177,6 @@ make_report <- function(database = "lenient_dev",
                                reference_table = reference,
                                events_table = tbls[["events"]])
 
-  # Write out this validation to the database
-  episode_validation <- episode_length %>%
-    dplyr::select(episode_id, validity)
-
-  DBI::dbWriteTable(
-    conn =  ctn,
-    name = "episode_validation",
-    value = episode_validation,
-    append = FALSE,
-    overwrite = TRUE)
-
   # Seplls
   spells_user_defined <- identify_spells(
     episode_length = episode_length,
@@ -249,10 +217,18 @@ make_report <- function(database = "lenient_dev",
                                           all_sites = all_sites,
                                           threshold = 10)
 
-  #save(validated_episodes, file = paste0(path_name,
-  # "validation_data/validated_episodes.RData"))
-  DBI::dbWriteTable(ctn, "episode_validation", validated_episodes, append = TRUE,
-                    overwrite = FALSE)
+  # Write out this validation to the database
+  validated_episodes_db <- validated_episodes %>%
+    dplyr::select(episode_id, validity)
+
+  if (DBI::dbExistsTable(ctn, "episode_validation")) {
+    DBI::dbRemoveTable(ctn, "episode_validation")
+  }
+
+  DBI::dbWriteTable(
+    conn =  ctn,
+    name = "episode_validation",
+    value = validated_episodes_db)
 
   print("Finished Episode Evaluation")
 
@@ -287,7 +263,9 @@ make_report <- function(database = "lenient_dev",
 
     hic_event_validation <- validate_event(validated_episodes, temp_df)
 
+    if (nrow(hic_event_validation) > 0) {
     DBI::dbWriteTable(conn = ctn, name = "event_validation", value = hic_event_validation, append = TRUE)
+    }
 
     print(paste0("finished validating: ", hic_codes[i]))
 

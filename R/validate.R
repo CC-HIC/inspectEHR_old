@@ -18,14 +18,17 @@
 #' @export
 #'
 #' @importFrom dplyr mutate group_by summarise left_join right_join n_distinct
-#' distinct tibble bind_rows
+#' distinct tibble bind_rows pull
 #' @importFrom lubridate date year month wday
 #'
 #' @examples
 #' invalid_months(episodes, provenance)
 #' invalid_months(episodes, provenance, theshold = 15)
-validate_episodes <- function(episode_length_table,
-                           reference_table, all_sites, threshold = 10) {
+validate_episodes <- function(
+  episode_length_table,
+  reference_table,
+  all_sites,
+  threshold = 10) {
 
   # The typical admissions for a given day of the week within a year window
   # This helps to account for seasonality and trend changes over time
@@ -104,9 +107,13 @@ validate_episodes <- function(episode_length_table,
     dplyr::select(episode_id, count) %>%
     dplyr::mutate(validity = if_else(count >= threshold, 3L, as.integer(NA))) %>%
     dplyr::filter(!is.na(validity)) %>%
-    dplyr::select(episode_id, validity)
+    dplyr::select(episode_id) %>%
+    dplyr::pull()
 
-  return(validation)
+    validated <- episode_length_table %>%
+      mutate(validity = if_else(episode_id %in% validation, 3L, validity))
+
+  return(validated)
 
 }
 

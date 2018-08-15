@@ -146,8 +146,6 @@ unit_admissions <- function(events_table = NULL, reference_table = NULL){
 #' epi_length(reference, tbls[["events"]])
 epi_length <- function(core_table, reference_table = NULL, events_table = NULL) {
 
-  print(exists("core_table"))
-
   # Find the episode end time from administrative records
   on_unit_exit <- episode_end_generic(reference_table = reference_table,
                                events_table = events_table,
