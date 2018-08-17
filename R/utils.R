@@ -16,8 +16,8 @@
 #' # connect to sqlite
 #' ctn <- connect(system = "sqlite", file = "path/to/file.sqlite3")
 connect <- function(host = 'localhost',
-                    username = 'ucasper',
-                    password = "superdb",
+                    username = NULL,
+                    password = NULL,
                     database = 'cchic',
                     system = "postgres",
                     file = NULL) {
