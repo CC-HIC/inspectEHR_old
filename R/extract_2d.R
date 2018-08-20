@@ -103,7 +103,7 @@ process_episode <- function(df, var_name, metadata, start_time) {
     mutate(diff_time = difftime(datetime, start_time, units = "hours")) %>%
     mutate(r_diff_time = as.integer(round(diff_time))) %>%
     distinct(r_diff_time, .keep_all = TRUE) %>%
-    select(-row.names, -episode_id, -datetime, -code_name, -diff_time) %>%
+    select(-event_id, -episode_id, -datetime, -code_name, -diff_time) %>%
     rename(!! var_name := prim_col) %>%
     select(r_diff_time, !! var_name, !!! meta_names)
 
@@ -178,9 +178,11 @@ expand_missing <- function(df) {
   df %>%
     select(episode_id, time) %>%
     split(., .$episode_id) %>%
-    imap(function(df, epi_id) tibble(episode_id = epi_id,
-                                     time = seq(min(df$time), max(df$time)))) %>%
-           bind_rows() %>%
-           left_join(x, by = c("episode_id", "time"))
-
+    imap(function(base_table, epi_id) {
+      tibble(episode_id = epi_id,
+            time = seq(min(base_table$time, 0), max(base_table$time, 0)))
+        }
+      ) %>%
+    bind_rows() %>%
+    left_join(df, by = c("episode_id", "time"))
 }

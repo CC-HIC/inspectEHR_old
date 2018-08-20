@@ -4,12 +4,15 @@
 \alias{extract_demographics}
 \title{Extract 1d data from CC-HIC}
 \usage{
-extract_demographics(metadata = NULL, events = NULL)
+extract_demographics(metadata = NULL, events = NULL,
+  codes = "NIHR_HIC_ICU_0093")
 }
 \arguments{
 \item{metadata}{a database metadata table}
 
 \item{events}{a database events table}
+
+\item{codes}{a character vector of HIC codes you want to retrieve}
 }
 \value{
 A tibble of 1d data

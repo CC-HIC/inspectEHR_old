@@ -4,7 +4,7 @@
 \alias{connect}
 \title{Establishes a connection to the database}
 \usage{
-connect(host = "localhost", username = "ucasper", password = "superdb",
+connect(host = "localhost", username = NULL, password = NULL,
   database = "cchic", system = "postgres", file = NULL)
 }
 \arguments{

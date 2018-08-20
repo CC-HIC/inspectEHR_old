@@ -2,13 +2,14 @@
 #'
 #' @param metadata a database metadata table
 #' @param events a database events table
+#' @param codes a character vector of HIC codes you want to retrieve
 #'
 #' @export
 #'
 #' @return A tibble of 1d data
 #' @examples
 #' extract_demographics(tbls[["variables"]], tbls[["events"]])
-extract_demographics <- function(metadata = NULL, events = NULL) {
+extract_demographics <- function(metadata = NULL, events = NULL, codes = "NIHR_HIC_ICU_0093") {
 
   demographics <- metadata %>%
     collect() %>%
@@ -75,6 +76,8 @@ extract_demographics <- function(metadata = NULL, events = NULL) {
     full_join(tb_1_dates, by = "episode_id") %>%
     full_join(tb_1_datetime, by = "episode_id") %>%
     full_join(tb_1_time, by = "episode_id")
+
+  db_1 <- select(db_1, episode_id, !!! codes)
 
   return(db_1)
 
