@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1548746819256.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2621480967",
+    "id" : "6F69216F",
+    "lastKnownWriteTime" : 1533558035,
+    "last_content_update" : 1533558035,
+    "path" : "~/Synology/developer/inspectEHR/data-raw/write_test_data.R",
+    "project_path" : "data-raw/write_test_data.R",
+    "properties" : {
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
