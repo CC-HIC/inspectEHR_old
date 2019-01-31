@@ -24,6 +24,9 @@
 #'
 #' @param events database events table
 #' @param metadata database metadata table (collected)
+#' @param code_names a vector of HIC codes names to be wrangled out
+#' @param chunk_size a chunking parameter to help speed up the function and manage memory constaints
+#' @param cadance the base time unit to build each row. 1 = 1 hour, 0.5 = 30 mins
 #'
 #' @return sparse tibble with hourly cadance as rows, and unique hic events as columns
 #' @export

@@ -1,5 +1,5 @@
 ---
-title: "An overview of inspectEHR (hicreportR)"
+title: "An overview of inspectEHR"
 author: "Edward Palmer"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
@@ -16,50 +16,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-inspectEHR, developed as hicreportR, is a quality assurance tool for the CC-HIC project. The goal of this package is to provide a core set of functions to flag erroneous or otherwise questionable data within CC-HIC, so the end researcher can handle this information explicitly.
+inspectEHR is a quality assurance tool for the CC-HIC project. The goal of this package is to provide a core set of functions to flag erroneous or otherwise questionable data within CC-HIC, so the end researcher can handle this information explicitly.
 
-This results in the following set of procedures:
+This information is subseqently written out to the database for future use.
+A report is also generated and compiled with bookdown.
 
-- building episode characteristics
-- flagging event level data to pre-determined quality controls
-- reporting of validated episodes considered "research ready".
-
-A secondary use of this package is to provide the processesing framework to produce a regular report on the contents of the CC-HIC database.
-
-# Typical Workflow
-
-## Establish Database Connections
-
-
-
-Collecting smaller tables is generally recommended. We would advise against collection of the main events table, as you will likely run into memory problems.
-
-## Core Table
-
-
-## Figures
-
-The figure sizes have been customised so that you can easily put two images side-by-side. 
-
-
-
-You can enable figure captions by `fig_caption: yes` in YAML:
-
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
-
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
-
-## More Examples
-
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
-
-Also a quote using `>`:
-
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+Helper functions for wrangling data have been developed and can be viewed in the other vignette. These will be ported over to cleanEHR shortly.

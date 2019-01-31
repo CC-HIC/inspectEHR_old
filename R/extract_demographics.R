@@ -1,5 +1,9 @@
 #' Extract 1d data from CC-HIC
 #'
+#' This function takes remote database tables from the CC-HIC project and a
+#' vector of HIC codes and returns a table with 1 row per patient and 1 column
+#' per data item.
+#'
 #' @param metadata a database metadata table
 #' @param events a database events table
 #' @param codes a character vector of HIC codes you want to retrieve
