@@ -52,9 +52,9 @@ demo_codes <- tribble(
 
 # Extract 1d data
 
-dtb <- extract_demographics(metadata = tbls[["variables"]],
-                            events = tbls[["events"]],
-                            codes = demo_codes$hic_codes,
+dtb <- extract_demographics(events = tbls[["events"]],
+                            metadata = tbls[["variables"]],
+                            code_names = demo_codes$hic_codes,
                             rename = demo_codes$short_name)
 
 # Grab longitudinal (2d) data ---------------------

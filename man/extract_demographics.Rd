@@ -4,15 +4,15 @@
 \alias{extract_demographics}
 \title{Extract 1d data from CC-HIC}
 \usage{
-extract_demographics(metadata = NULL, events = NULL,
-  codes = "NIHR_HIC_ICU_0093", rename = NULL)
+extract_demographics(events = NULL, metadata = NULL,
+  code_names = "NIHR_HIC_ICU_0093", rename = NULL)
 }
 \arguments{
-\item{metadata}{a database metadata table}
-
 \item{events}{a database events table}
 
-\item{codes}{a character vector of HIC codes you want to retrieve}
+\item{metadata}{a database metadata table}
+
+\item{code_names}{a character vector of HIC codes you want to retrieve}
 
 \item{rename}{a character vector of names you want to relabel column names
 as, or NULL ( the default) if you want column names to be labelled with

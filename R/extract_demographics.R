@@ -5,9 +5,9 @@
 #' per data item.
 #'
 #'
-#' @param metadata a database metadata table
 #' @param events a database events table
-#' @param codes a character vector of HIC codes you want to retrieve
+#' @param metadata a database metadata table
+#' @param code_names a character vector of HIC codes you want to retrieve
 #' @param rename a character vector of names you want to relabel column names
 #' as, or NULL ( the default) if you want column names to be labelled with
 #' HIC codes
@@ -17,7 +17,7 @@
 #' @return A tibble of 1d data
 #' @examples
 #' extract_demographics(tbls[["variables"]], tbls[["events"]])
-extract_demographics <- function(metadata = NULL, events = NULL, codes = "NIHR_HIC_ICU_0093", rename = NULL) {
+extract_demographics <- function(events = NULL, metadata = NULL, code_names = "NIHR_HIC_ICU_0093", rename = NULL) {
 
   demographics <- metadata %>%
     collect() %>%
@@ -29,11 +29,12 @@ extract_demographics <- function(metadata = NULL, events = NULL, codes = "NIHR_H
     dplyr::filter(nas == 1) %>%
     dplyr::select(code_name, primary_column)
 
-  code_names <- demographics$code_name
+  all_demographic_codes <- demographics$code_name
+  extract_codes <- all_demographic_codes[all_demographic_codes %in% code_names]
 
   tb_base <- events %>%
     select(episode_id, code_name, integer, string, real, date, time, datetime) %>%
-    filter(code_name %in% code_names) %>%
+    filter(code_name %in% extract_codes) %>%
     collect()
 
   tb_1_strings <- tb_base %>%
@@ -87,7 +88,7 @@ extract_demographics <- function(metadata = NULL, events = NULL, codes = "NIHR_H
          tb_1_time),
     full_join, by = "episode_id")
 
-  db_1 <- select(db_1, episode_id, !!! codes)
+  db_1 <- select(db_1, episode_id, !!! extract_codes)
 
   if (!is.null(rename)) {
     replacement_names <- rename[match(names(db_1), code_names)]
