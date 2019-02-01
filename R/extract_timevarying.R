@@ -35,6 +35,7 @@
 #' @export
 #'
 #' @importFrom purrr map imap
+#' @importFrom lubridate now
 #'
 #' @examples
 #' \dontrun{
@@ -73,49 +74,7 @@ extract_timevarying <- function(events, metadata, code_names, chunk_size = 5000,
       }) %>%
     bind_rows()
 
-  elapsed_time <- signif(as.numeric(difftime(now(), starting, units = "hour")), 2)
-  print(paste(elapsed_time, "hours to process"))
-
-  return(episode_groups)
-
-}
-
-
-
-extract_timevarying_exact <- function(events, metadata, code_names, chunk_size = 5000, cadance = 1) {
-
-  starting <- lubridate::now()
-
-  if (!(any(code_names %in% "NIHR_HIC_ICU_0411"))) {
-    append(code_names, "NIHR_HIC_ICU_0411")
-  }
-
-  episode_groups <- events %>%
-    select(episode_id) %>%
-    distinct() %>%
-    collect() %>%
-    mutate(group = as.integer(seq(n())/chunk_size)) %>%
-    split(., .$group) %>%
-    map(function(epi_ids) {
-
-      collect_events <- events %>%
-        filter(code_name %in% code_names) %>%
-        filter(episode_id %in% epi_ids$episode_id) %>%
-        collect()
-
-      map(collect_events %>%
-            select(episode_id) %>%
-            distinct() %>%
-            pull(), process_all,
-          events = collect_events,
-          metadata = metadata,
-          cadance = cadance) %>%
-        bind_rows()
-
-    }) %>%
-    bind_rows()
-
-  elapsed_time <- signif(as.numeric(difftime(now(), starting, units = "hour")), 2)
+  elapsed_time <- signif(as.numeric(difftime(lubridate::now(), starting, units = "hour")), 2)
   print(paste(elapsed_time, "hours to process"))
 
   return(episode_groups)

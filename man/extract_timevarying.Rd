@@ -16,7 +16,10 @@ extract_timevarying(events, metadata, code_names, chunk_size = 5000,
 
 \item{chunk_size}{a chunking parameter to help speed up the function and manage memory constaints}
 
-\item{cadance}{the base time unit to build each row. 1 = 1 hour, 0.5 = 30 mins}
+\item{cadance}{a numerical scalar to describe the base time unit to build
+each row, in divisions of an hour. For exampple: 1 = 1 hour, 0.5 = 30 mins, 2 = 2 hourly.
+If you set cadance = "exact", then the EXACT datetime will be used at the time column.
+This is likely to generate a LARGE table, so use cautiously.}
 }
 \value{
 sparse tibble with hourly cadance as rows, and unique hic events as columns
