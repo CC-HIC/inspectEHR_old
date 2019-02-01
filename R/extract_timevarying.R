@@ -41,7 +41,7 @@
 #' \dontrun{
 #' extract_timevarying(tbls[["events"]], collect(tbls[["variables"]]), "NIHR_HIC_ICU_0108")
 #'
-extract_timevarying <- function(events, metadata, code_names, chunk_size = 5000, cadance = 1) {
+extract_timevarying <- function(events, metadata, code_names, chunk_size = 5000, cadance = 1, rename = NULL) {
 
   starting <- lubridate::now()
 
@@ -73,6 +73,13 @@ extract_timevarying <- function(events, metadata, code_names, chunk_size = 5000,
 
       }) %>%
     bind_rows()
+
+  if (!is.null(rename)) {
+
+    replacement_names <- rename[match(names(episode_groups), code_names)]
+    names(episode_groups) <- if_else(is.na(replacement_names), names(episode_groups), replacement_names)
+
+  }
 
   elapsed_time <- signif(as.numeric(difftime(lubridate::now(), starting, units = "hour")), 2)
   print(paste(elapsed_time, "hours to process"))

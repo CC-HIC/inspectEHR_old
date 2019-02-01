@@ -4,16 +4,20 @@
 #' vector of HIC codes and returns a table with 1 row per patient and 1 column
 #' per data item.
 #'
+#'
 #' @param metadata a database metadata table
 #' @param events a database events table
 #' @param codes a character vector of HIC codes you want to retrieve
+#' @param rename a character vector of names you want to relabel column names
+#' as, or NULL ( the default) if you want column names to be labelled with
+#' HIC codes
 #'
 #' @export
 #'
 #' @return A tibble of 1d data
 #' @examples
 #' extract_demographics(tbls[["variables"]], tbls[["events"]])
-extract_demographics <- function(metadata = NULL, events = NULL, codes = "NIHR_HIC_ICU_0093") {
+extract_demographics <- function(metadata = NULL, events = NULL, codes = "NIHR_HIC_ICU_0093", rename = NULL) {
 
   demographics <- metadata %>%
     collect() %>%
@@ -84,6 +88,11 @@ extract_demographics <- function(metadata = NULL, events = NULL, codes = "NIHR_H
     full_join, by = "episode_id")
 
   db_1 <- select(db_1, episode_id, !!! codes)
+
+  if (!is.null(rename)) {
+    replacement_names <- rename[match(names(db_1), code_names)]
+    names(db_1) <- if_else(is.na(replacement_names), names(db_1), replacement_names)
+  }
 
   return(db_1)
 

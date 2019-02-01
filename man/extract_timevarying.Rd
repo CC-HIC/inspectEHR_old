@@ -5,7 +5,7 @@
 \title{Reshape timevarying events into a long form timeseries table}
 \usage{
 extract_timevarying(events, metadata, code_names, chunk_size = 5000,
-  cadance = 1)
+  cadance = 1, rename = NULL)
 }
 \arguments{
 \item{events}{database events table}
