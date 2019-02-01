@@ -18,7 +18,9 @@ extract_demographics(metadata = NULL, events = NULL,
 A tibble of 1d data
 }
 \description{
-Extract 1d data from CC-HIC
+This function takes remote database tables from the CC-HIC project and a
+vector of HIC codes and returns a table with 1 row per patient and 1 column
+per data item.
 }
 \examples{
 extract_demographics(tbls[["variables"]], tbls[["events"]])

@@ -26,7 +26,10 @@
 #' @param metadata database metadata table (collected)
 #' @param code_names a vector of HIC codes names to be wrangled out
 #' @param chunk_size a chunking parameter to help speed up the function and manage memory constaints
-#' @param cadance the base time unit to build each row. 1 = 1 hour, 0.5 = 30 mins
+#' @param cadance a numerical scalar to describe the base time unit to build
+#' each row, in divisions of an hour. For exampple: 1 = 1 hour, 0.5 = 30 mins, 2 = 2 hourly.
+#' If you set cadance = "exact", then the EXACT datetime will be used at the time column.
+#' This is likely to generate a LARGE table, so use cautiously.
 #'
 #' @return sparse tibble with hourly cadance as rows, and unique hic events as columns
 #' @export
@@ -77,6 +80,49 @@ extract_timevarying <- function(events, metadata, code_names, chunk_size = 5000,
 
 }
 
+
+
+extract_timevarying_exact <- function(events, metadata, code_names, chunk_size = 5000, cadance = 1) {
+
+  starting <- lubridate::now()
+
+  if (!(any(code_names %in% "NIHR_HIC_ICU_0411"))) {
+    append(code_names, "NIHR_HIC_ICU_0411")
+  }
+
+  episode_groups <- events %>%
+    select(episode_id) %>%
+    distinct() %>%
+    collect() %>%
+    mutate(group = as.integer(seq(n())/chunk_size)) %>%
+    split(., .$group) %>%
+    map(function(epi_ids) {
+
+      collect_events <- events %>%
+        filter(code_name %in% code_names) %>%
+        filter(episode_id %in% epi_ids$episode_id) %>%
+        collect()
+
+      map(collect_events %>%
+            select(episode_id) %>%
+            distinct() %>%
+            pull(), process_all,
+          events = collect_events,
+          metadata = metadata,
+          cadance = cadance) %>%
+        bind_rows()
+
+    }) %>%
+    bind_rows()
+
+  elapsed_time <- signif(as.numeric(difftime(now(), starting, units = "hour")), 2)
+  print(paste(elapsed_time, "hours to process"))
+
+  return(episode_groups)
+
+}
+
+
 process_all <- function(epi_id, events, metadata, cadance) {
 
   pt <- events %>%
@@ -88,6 +134,21 @@ process_all <- function(epi_id, events, metadata, cadance) {
     select(datetime) %>%
     pull
 
+  if (cadance == "exact") {
+
+    imap(pt %>%
+           filter(code_name %in% find_2d(metadata)$code_name) %>%
+           arrange(code_name) %>%
+           split(., .$code_name), process_episode_exact,
+         metadata = metadata,
+         start_time = start_time) %>%
+      reduce(full_join, by = "r_diff_time", .init = tibble(r_diff_time = as.numeric(NULL))) %>%
+      rename(time = r_diff_time) %>%
+      mutate(episode_id = epi_id) %>%
+      arrange(time)
+
+  } else {
+
   imap(pt %>%
          filter(code_name %in% find_2d(metadata)$code_name) %>%
          arrange(code_name) %>%
@@ -95,11 +156,12 @@ process_all <- function(epi_id, events, metadata, cadance) {
        metadata = metadata,
        start_time = start_time,
        cadance = cadance) %>%
-    reduce(full_join, by = "r_diff_time", .init = tibble(r_diff_time = as.integer(NULL))) %>%
+    reduce(full_join, by = "r_diff_time", .init = tibble(r_diff_time = as.numeric(NULL))) %>%
     rename(time = r_diff_time) %>%
     mutate(episode_id = epi_id) %>%
     arrange(time)
 
+  }
 }
 
 
@@ -133,6 +195,51 @@ process_episode <- function(df, var_name, metadata, start_time, cadance) {
   rename(tb_a, !!! meta_names)
 
 }
+
+
+#' Process episode exactly
+#'
+#' This function helps to create a single episode in a rectangular form with
+#' a time column corresponding to the exact period since admission.
+#'
+#' @param df
+#' @param var_name
+#' @param metadata
+#' @param start_time
+#'
+#' @return
+#'
+#' @examples
+process_episode_exact <- function(df, var_name, metadata, start_time) {
+
+  stopifnot(!is.na(df$datetime))
+
+  prim_col <- metadata %>%
+    filter(code_name == var_name) %>%
+    select(primary_column) %>%
+    pull
+
+  meta_names <- find_2d_meta(metadata, var_name)
+
+  tb_a <- df %>%
+    mutate(datetime = as.POSIXct(datetime, origin = "1970-01-01 00:00:00")) %>%
+    mutate(r_diff_time = as.numeric(difftime(datetime, start_time, units = "hours"))) %>%
+    distinct(r_diff_time, .keep_all = TRUE) %>%
+    select(-event_id, -episode_id, -datetime, -code_name) %>%
+    rename(!! var_name := prim_col) %>%
+    select(r_diff_time, !! var_name, !!! meta_names)
+
+  if(length(meta_names) == 0) {
+
+    return(tb_a)
+
+  }
+
+  names(meta_names) <- paste(var_name, "meta", 1:length(meta_names), sep = ".")
+  rename(tb_a, !!! meta_names)
+
+}
+
 
 
 not_na <- function(x) {

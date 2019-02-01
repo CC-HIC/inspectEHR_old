@@ -21,7 +21,7 @@ inspectEHR contains a number of helper functions for wrangling data. These will 
 ```{r install_inspectEHR}
 # If you need inspectEHR
 # library(devtools)
-# install_github("CC-HIC/inspectEHR", ref = "postgres")
+# install_github("CC-HIC/inspectEHR", ref = "sql")
 
 library(tidyverse)
 library(inspectEHR) # note extract is masked by tidyverse
@@ -33,7 +33,7 @@ Establish a database connection. You will most likely be working with sqlite as 
 
 ```{r db_connect}
 # Establish a DB connection and retrive tables
-ctn <- connect(system = "sqlite", file = "~/Documents/_data/hic/public_release_20180914.sqlite3")
+ctn <- connect(system = "sqlite", file = "~/path/to/the/database/public_release_xxxxxx.sqlite3")
 tbls <- retrieve_tables(ctn)
 ```
 

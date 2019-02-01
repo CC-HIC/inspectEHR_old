@@ -11,6 +11,12 @@ extract_timevarying(events, metadata, code_names, chunk_size = 5000,
 \item{events}{database events table}
 
 \item{metadata}{database metadata table (collected)}
+
+\item{code_names}{a vector of HIC codes names to be wrangled out}
+
+\item{chunk_size}{a chunking parameter to help speed up the function and manage memory constaints}
+
+\item{cadance}{the base time unit to build each row. 1 = 1 hour, 0.5 = 30 mins}
 }
 \value{
 sparse tibble with hourly cadance as rows, and unique hic events as columns
